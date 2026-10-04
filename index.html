@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- =====================================================================
+       CONFIGURACIÓN DEL NEGOCIO
+       Para reutilizar la página con otro negocio, edita SOLO este bloque
+       (hasta "FIN DE LA CONFIGURACIÓN"). El resto se genera a partir de él.
+       ===================================================================== -->
+
+  <!-- Vista previa al compartir el enlace (WhatsApp, Facebook, Google).
+       Va en HTML y no en CONFIG porque esos servicios no ejecutan JavaScript. -->
+  <title>Café Canela · Café de olla, crepas y frappés</title>
+  <meta name="description" content="Cafetería en Coyoacán: café de olla, crepas y frappés hechos al momento. Consulta el menú, el horario y la ubicación, y pide por WhatsApp." />
+  <meta property="og:title" content="Café Canela" />
+  <meta property="og:description" content="Café de olla, crepas y frappés hechos al momento. Pide por WhatsApp." />
+  <meta property="og:image" content="https://images.unsplash.com/photo-1461988366670-48e401bafb0a?w=1200&h=630&fit=crop&fm=jpg&q=70" />
+
+  <script>
+    const CONFIG = {
+      // ── Datos del negocio ──────────────────────────────────────────────
+      nombre: "Café Canela",
+      tipo: "Cafetería de barrio · Coyoacán", // línea pequeña sobre el nombre
+      eslogan: "Café de olla, crepas y frappés hechos al momento.",
+
+      // ── WhatsApp ──────────────────────────────────────────────────────
+      // Con código de país (México: +52 y los 10 dígitos). Espacios y "+" se ignoran.
+      // Si el chat no abre con +52, prueba con +52 1 antes de los 10 dígitos.
+      whatsapp: "+52 55 0000 0000", // ⚠️ número de ejemplo: cámbialo por el real
+      mensajeWhatsapp: "¡Hola, {nombre}! Me gustaría hacer un pedido.", // {nombre} se reemplaza solo
+
+      // ── Ubicación ─────────────────────────────────────────────────────
+      direccion: "Jardín Centenario, Coyoacán, Ciudad de México", // dirección de ejemplo
+      // Opcionales, para un pin exacto (Google Maps → tu negocio → Compartir):
+      mapaEmbed: "",  // pestaña "Insertar un mapa": pega el código <iframe> o solo la URL del src
+      enlaceMaps: "", // pestaña "Enviar un vínculo": p. ej. https://maps.app.goo.gl/...
+
+      // ── Horario ───────────────────────────────────────────────────────
+      // Formato 24 h: "8:00-21:00". Dos turnos: "8:00-14:00, 17:00-21:00". Sin servicio: "cerrado"
+      // (los días que borres también cuentan como cerrados).
+      // Con él se calcula el aviso "Abierto ahora / Cerrado" en la hora del negocio.
+      zonaHoraria: "America/Mexico_City", // Monterrey, Cancún, Tijuana…: "America/Monterrey", "America/Cancun", "America/Tijuana"
+      horario: {
+        lunes:     "8:00-21:00",
+        martes:    "8:00-21:00",
+        miercoles: "8:00-21:00",
+        jueves:    "8:00-21:00",
+        viernes:   "8:00-22:00",
+        sabado:    "9:00-22:00",
+        domingo:   "9:00-15:00",
+      },
+
+      // ── Redes sociales (opcional) ─────────────────────────────────────
+      // Enlace completo o solo el usuario ("@micafe"). Las vacías no se muestran.
+      redes: { instagram: "", facebook: "", tiktok: "" },
+
+      // ── Imágenes ──────────────────────────────────────────────────────
+      // Placeholders de Unsplash (no son fotos del negocio): cámbialos por fotos reales.
+      // Sirve cualquier URL de imagen; las de images.unsplash.com se recortan y optimizan solas.
+      imagenes: {
+        portada: "https://images.unsplash.com/photo-1461988366670-48e401bafb0a", // cafetera de espresso · foto: Crew
+        local:   "https://images.unsplash.com/photo-1464979681340-bdd28a61699e", // barra de una cafetería · foto: Robert Bye
+      },
+      avisoImagenes: "Imágenes ilustrativas.", // déjalo en "" cuando uses fotos reales
+
+      // ── Productos estrella (tarjetas debajo de la portada) ───────────
+      // "categoria" = id de la categoría del menú que se abre al tocar la tarjeta.
+      productosEstrella: [
+        {
+          nombre: "Café de olla",
+          descripcion: "Con canela y piloncillo, como en casa.",
+          categoria: "calientes",
+          imagen: "https://images.unsplash.com/photo-1526385159909-196a9ac0ef64", // taza de café · foto: Tim Foster
+        },
+        {
+          nombre: "Crepas",
+          descripcion: "Dulces o saladas, recién hechas.",
+          categoria: "postres",
+          imagen: "https://images.unsplash.com/photo-1744638628542-12578d73179b", // café y pan dulce (no son crepas) · foto: Miraxh Tereziu
+        },
+        {
+          nombre: "Frappés",
+          descripcion: "Moka, cajeta, taro y más, bien fríos.",
+          categoria: "frias",
+          imagen: "https://images.unsplash.com/photo-1445532529572-b970dbde1bcf", // café helado · foto: Daryn Stumbaugh
+        },
+      ],
+
+      // ── Menú ──────────────────────────────────────────────────────────
+      // Cada categoría: id único (sin espacios), nombre visible y sus productos.
+      // precio: un número (45) o por tamaño ({ Chico: 45, Grande: 55 }).
+      // etiqueta (opcional): "Favorito", "Nuevo", "Temporada"… · nota (opcional): texto al pie.
+      // Los precios son de ejemplo.
+      moneda: "MXN",
+      notaMenu: "Precios en pesos mexicanos. Pregunta por leche deslactosada o vegetal.",
+      menu: [
+        {
+          id: "calientes",
+          nombre: "Bebidas calientes",
+          productos: [
+            { nombre: "Café de olla", descripcion: "Con canela y piloncillo.", precio: { Chico: 38, Grande: 48 }, etiqueta: "Favorito" },
+            { nombre: "Americano", descripcion: "Café de grano recién molido.", precio: { Chico: 35, Grande: 42 } },
+            { nombre: "Espresso", descripcion: "Doble, corto e intenso.", precio: 35 },
+            { nombre: "Capuchino", descripcion: "Espresso con leche cremosa y mucha espuma.", precio: { Chico: 48, Grande: 58 } },
+            { nombre: "Latte", descripcion: "Natural, vainilla o caramelo.", precio: { Chico: 50, Grande: 60 } },
+            { nombre: "Chocolate caliente", descripcion: "Chocolate de mesa batido con leche.", precio: 52 },
+            { nombre: "Chai latte", descripcion: "Especiado y cremoso.", precio: 58 },
+            { nombre: "Té", descripcion: "Manzanilla, hierbabuena o frutos rojos.", precio: 32 },
+          ],
+          nota: "Leche vegetal (avena o almendra) +$10.",
+        },
+        {
+          id: "frias",
+          nombre: "Bebidas frías",
+          productos: [
+            { nombre: "Frappé de moka", descripcion: "Café, chocolate y crema batida.", precio: { Chico: 62, Grande: 72 }, etiqueta: "Favorito" },
+            { nombre: "Frappé de cajeta", descripcion: "Con cajeta y crema batida.", precio: { Chico: 62, Grande: 72 } },
+            { nombre: "Frappé de galleta", descripcion: "Cookies & cream con chispas de chocolate.", precio: { Chico: 65, Grande: 75 } },
+            { nombre: "Frappé de taro", descripcion: "Dulce y cremoso, sin café.", precio: { Chico: 65, Grande: 75 }, etiqueta: "Nuevo" },
+            { nombre: "Café helado", descripcion: "Cold brew con hielo y un toque de leche.", precio: 55 },
+            { nombre: "Limonada", descripcion: "Natural o mineral.", precio: 38 },
+          ],
+        },
+        {
+          id: "comida",
+          nombre: "Comida",
+          productos: [
+            { nombre: "Crepa de jamón y queso", descripcion: "Con queso manchego gratinado.", precio: 72 },
+            { nombre: "Crepa poblana", descripcion: "Rajas, elote y queso con crema.", precio: 85, etiqueta: "Favorito" },
+            { nombre: "Chilaquiles", descripcion: "Verdes o rojos, con crema, queso y cebolla. Con pollo +$25.", precio: 95 },
+            { nombre: "Molletes", descripcion: "Frijoles, queso gratinado y pico de gallo.", precio: 70 },
+            { nombre: "Sándwich de pavo", descripcion: "Pan de masa madre, pavo, panela y aguacate.", precio: 89 },
+            { nombre: "Croissant de jamón y queso", descripcion: "Horneado y calientito.", precio: 68 },
+          ],
+        },
+        {
+          id: "postres",
+          nombre: "Postres",
+          productos: [
+            { nombre: "Crepa de Nutella", descripcion: "Con plátano y nuez.", precio: 78, etiqueta: "Favorito" },
+            { nombre: "Crepa de cajeta", descripcion: "Con nuez y un toque de canela.", precio: 74 },
+            { nombre: "Pastel de chocolate", descripcion: "Rebanada húmeda con betún de chocolate.", precio: 65 },
+            { nombre: "Cheesecake de frutos rojos", descripcion: "Horneado, estilo Nueva York.", precio: 70 },
+            { nombre: "Pan de elote", descripcion: "Ideal con un café de olla.", precio: 45 },
+            { nombre: "Concha", descripcion: "Vainilla o chocolate.", precio: 28 },
+          ],
+        },
+      ],
+    };
+  </script>
+  <!-- ======================== FIN DE LA CONFIGURACIÓN ======================== -->
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_MX" />
+  <meta name="theme-color" content="#1A100A" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☕</text></svg>" />
+
+  <script>
+    // Activa las animaciones solo si hay JavaScript.
+    document.documentElement.classList.add("js");
+
+    // Utilidades de imágenes (también las usa el script del final de la página).
+    // Las fotos de images.unsplash.com se piden recortadas al tamaño justo de cada pantalla.
+    var IMAGEN_PORTADA = {
+      celular: { anchos: [640, 828, 1170], proporcion: 1.8 }, // vertical
+      escritorio: { anchos: [1280, 1920, 2560], proporcion: 0.6 }, // horizontal
+    };
+    function esUnsplash(url) {
+      return /^https:\/\/images\.unsplash\.com\//.test(url || "");
+    }
+    function urlImagen(url, ancho, proporcion) {
+      if (!esUnsplash(url)) return url;
+      var u = new URL(url);
+      u.searchParams.set("auto", "format");
+      u.searchParams.set("fit", "crop");
+      u.searchParams.set("q", "70");
+      u.searchParams.set("w", ancho);
+      if (proporcion) u.searchParams.set("h", Math.round(ancho * proporcion));
+      return u.toString();
+    }
+    function srcsetImagen(url, anchos, proporcion) {
+      if (!esUnsplash(url)) return "";
+      return anchos.map(function (w) { return urlImagen(url, w, proporcion) + " " + w + "w"; }).join(", ");
+    }
+
+    // Precarga la foto de portada para que aparezca cuanto antes en el celular.
+    (function () {
+      var url = CONFIG.imagenes && CONFIG.imagenes.portada;
+      if (!esUnsplash(url)) return;
+      [["(max-width: 767px)", IMAGEN_PORTADA.celular], ["(min-width: 768px)", IMAGEN_PORTADA.escritorio]].forEach(function (par) {
+        var link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "image";
+        link.media = par[0];
+        link.setAttribute("imagesrcset", srcsetImagen(url, par[1].anchos, par[1].proporcion));
+        link.setAttribute("imagesizes", "100vw");
+        link.setAttribute("fetchpriority", "high");
+        document.head.appendChild(link);
+      });
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,500&display=swap" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            crema: { 50: "#FBF7F2", 100: "#F4EBE0", 200: "#E9D9C6", 300: "#D9BFA0" },
+            cafe: {
+              300: "#C29A76", 400: "#A47852", 500: "#865B3A", 600: "#6B472D",
+              700: "#553723", 800: "#3E2819", 900: "#2A1B11", 950: "#1A100A",
+            },
+            canela: { 300: "#E3A877", 400: "#D58C55", 500: "#BF6E37", 600: "#A0582A", 700: "#844622" },
+          },
+          fontFamily: {
+            display: ["Fraunces", "Georgia", "serif"],
+            sans: ['"DM Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+    [hidden] { display: none !important; }
+
+    .portada { min-height: 92vh; min-height: 92svh; }
+
+    /* Encabezado: transparente sobre la portada, sólido al bajar */
+    #encabezado { color: #FBF7F2; transition: background-color .3s ease, color .3s ease, box-shadow .3s ease; }
+    #encabezado.solido {
+      color: #2A1B11;
+      background-color: rgba(251, 247, 242, .92);
+      box-shadow: 0 1px 0 rgba(42, 27, 17, .08);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+
+    /* Aparición suave al hacer scroll */
+    .js .revelar {
+      opacity: 0;
+      transform: translate3d(0, 1.5rem, 0);
+      transition: opacity .8s cubic-bezier(.2, .65, .3, 1), transform .8s cubic-bezier(.2, .65, .3, 1);
+      transition-delay: var(--retraso, 0ms);
+    }
+    .js .revelar.es-visible { opacity: 1; transform: none; }
+
+    /* Acercamiento lento de la foto de portada */
+    @keyframes acercar { from { transform: scale(1.12); } to { transform: scale(1); } }
+    .foto-portada { animation: acercar 16s cubic-bezier(.2, .6, .3, 1) both; }
+
+    /* Cambio de categoría del menú */
+    @keyframes aparecer { from { opacity: 0; transform: translateY(.5rem); } to { opacity: 1; transform: none; } }
+    .panel-menu:not([hidden]) { animation: aparecer .45s ease both; }
+
+    /* Onda del botón flotante (unas cuantas veces al cargar) */
+    @keyframes onda { from { transform: scale(1); opacity: .5; } to { transform: scale(1.7); opacity: 0; } }
+    .onda::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      border-radius: 9999px; background: #25D366; opacity: 0;
+      animation: onda 2.2s ease-out 1.2s 4;
+    }
+
+    /* Carruseles sin barra de scroll visible */
+    .sin-barra { scrollbar-width: none; }
+    .sin-barra::-webkit-scrollbar { display: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .js .revelar { opacity: 1; transform: none; transition: none; }
+      .foto-portada, .panel-menu:not([hidden]), .onda::before { animation: none; }
+    }
+  </style>
+</head>
+
+<body class="bg-crema-50 font-sans text-cafe-900 antialiased selection:bg-crema-300">
+  <a href="#menu" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-crema-50 focus:px-4 focus:py-2 focus:font-semibold focus:text-cafe-900 focus:shadow-lg">Saltar al menú</a>
+
+  <!-- Encabezado -->
+  <header id="encabezado" class="fixed inset-x-0 top-0 z-40">
+    <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-5 sm:px-8">
+      <a href="#inicio" class="flex min-w-0 items-center gap-2 font-display text-lg font-semibold tracking-tight">
+        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-6 w-6 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2" /><path d="M14 2v2" /><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" /><path d="M6 2v2" /></svg>
+        <span class="truncate" data-campo="nombre"></span>
+      </a>
+      <nav aria-label="Secciones" class="flex shrink-0 items-center text-sm font-semibold">
+        <a href="#menu" class="rounded-full px-2.5 py-2 underline-offset-4 hover:underline sm:px-3">Menú</a>
+        <a href="#visitanos" class="-mr-2.5 rounded-full px-2.5 py-2 underline-offset-4 hover:underline sm:mr-0 sm:px-3">Visítanos</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. Portada -->
+    <section id="inicio" class="portada relative isolate flex items-end overflow-hidden bg-cafe-950 text-crema-50">
+      <picture class="absolute inset-0 -z-20">
+        <source id="portada-celular" media="(max-width: 767px)" sizes="100vw" />
+        <img id="foto-portada" class="foto-portada h-full w-full object-cover" sizes="100vw" alt="" fetchpriority="high" decoding="async" onerror="this.style.visibility='hidden'" />
+      </picture>
+      <div aria-hidden="true" class="absolute inset-0 -z-10 bg-gradient-to-t from-cafe-950 via-cafe-950/75 to-cafe-950/30"></div>
+
+      <div class="mx-auto w-full max-w-6xl px-5 pb-14 pt-28 sm:px-8 sm:pb-20">
+        <p class="revelar text-xs font-bold uppercase tracking-[0.2em] text-canela-300" data-campo="tipo"></p>
+        <h1 class="revelar mt-3 text-balance font-display text-[3.25rem] font-semibold leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl" style="--retraso: 80ms" data-campo="nombre"></h1>
+        <p class="revelar mt-5 max-w-xl text-lg leading-relaxed text-crema-100/90 sm:text-xl" style="--retraso: 160ms" data-campo="eslogan"></p>
+        <div class="revelar mt-6" style="--retraso: 240ms">
+          <p data-estado class="inline-flex items-center gap-2.5 rounded-full bg-black/30 px-4 py-1.5 text-sm font-medium text-crema-50 ring-1 ring-inset ring-white/15 backdrop-blur" hidden></p>
+        </div>
+        <div class="revelar mt-8 flex flex-col gap-3 sm:flex-row" style="--retraso: 320ms">
+          <a data-whatsapp class="inline-flex items-center justify-center gap-2.5 rounded-full bg-crema-50 px-7 py-4 text-base font-semibold text-cafe-900 shadow-lg shadow-black/20 transition hover:bg-white active:scale-[.98]">
+            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5 text-[#189D4A]" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" /></svg>
+            Pedir por WhatsApp
+          </a>
+          <a href="#menu" class="inline-flex items-center justify-center rounded-full px-7 py-4 text-base font-semibold text-crema-50 ring-1 ring-inset ring-crema-50/40 transition hover:bg-crema-50/10">Ver menú</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Productos estrella -->
+    <section id="favoritos" aria-labelledby="titulo-favoritos" class="py-16 sm:py-24">
+      <div class="mx-auto max-w-6xl px-5 sm:px-8">
+        <div class="revelar max-w-2xl">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-canela-600">Lo más pedido</p>
+          <h2 id="titulo-favoritos" class="mt-3 text-balance font-display text-4xl font-semibold tracking-tight sm:text-5xl">Favoritos <em class="font-medium text-canela-600">de la casa</em></h2>
+        </div>
+        <div id="lista-favoritos" class="sin-barra -mx-5 -mb-8 mt-10 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-8 sm:mx-0 sm:mb-0 sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0"></div>
+      </div>
+    </section>
+
+    <!-- 2. Menú digital -->
+    <section id="menu" aria-labelledby="titulo-menu" class="scroll-mt-16 bg-crema-100 py-16 sm:py-24">
+      <div class="mx-auto max-w-6xl px-5 sm:px-8">
+        <div class="revelar max-w-2xl">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-canela-600">Menú digital</p>
+          <h2 id="titulo-menu" class="mt-3 text-balance font-display text-4xl font-semibold tracking-tight sm:text-5xl">Nuestro <em class="font-medium text-canela-600">menú</em></h2>
+          <p id="nota-menu" class="mt-4 text-cafe-600"></p>
+        </div>
+        <div class="sticky top-16 z-20 -mx-5 mt-8 bg-crema-100 py-3 sm:mx-0">
+          <div id="pestanas-menu" role="tablist" aria-label="Categorías del menú" class="sin-barra relative flex scroll-px-5 gap-2 overflow-x-auto px-5 sm:px-0"></div>
+        </div>
+        <div id="paneles-menu" class="mt-2"></div>
+        <noscript><p class="mt-6 text-cafe-700">Activa JavaScript para ver el menú.</p></noscript>
+      </div>
+    </section>
+
+    <!-- 3. Horario y ubicación -->
+    <section id="visitanos" aria-labelledby="titulo-visitanos" class="scroll-mt-16 py-16 sm:py-24">
+      <div class="mx-auto max-w-6xl px-5 sm:px-8">
+        <div class="revelar max-w-2xl">
+          <p class="text-xs font-bold uppercase tracking-[0.2em] text-canela-600">Visítanos</p>
+          <h2 id="titulo-visitanos" class="mt-3 text-balance font-display text-4xl font-semibold tracking-tight sm:text-5xl">Horario y <em class="font-medium text-canela-600">ubicación</em></h2>
+        </div>
+
+        <div class="mt-10 grid gap-6 lg:grid-cols-5">
+          <!-- Horario -->
+          <article class="revelar overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-cafe-900/5 lg:col-span-2">
+            <div class="relative h-44 bg-gradient-to-br from-cafe-500 to-cafe-900 sm:h-52">
+              <img id="foto-local" class="h-full w-full object-cover" sizes="(min-width: 1024px) 40vw, 100vw" alt="" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'" />
+              <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-t from-cafe-950/75 to-transparent"></div>
+              <p class="absolute bottom-4 left-6 font-display text-2xl font-semibold text-crema-50">Te esperamos</p>
+            </div>
+            <div class="p-6 sm:p-7">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <h3 class="font-display text-2xl font-semibold">Horario</h3>
+                <p data-estado class="inline-flex items-center gap-2 rounded-full bg-crema-100 px-3 py-1 text-sm font-medium text-cafe-800" hidden></p>
+              </div>
+              <dl id="tabla-horario" class="mt-4 space-y-0.5"></dl>
+            </div>
+          </article>
+
+          <!-- Ubicación -->
+          <article class="revelar flex flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-sm ring-1 ring-cafe-900/5 lg:col-span-3" style="--retraso: 120ms">
+            <div class="relative h-72 bg-crema-200 sm:h-80 lg:h-auto lg:min-h-[20rem] lg:flex-1">
+              <iframe id="mapa" title="Mapa de ubicación" class="absolute inset-0 h-full w-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+            </div>
+            <div class="p-6 sm:p-7">
+              <h3 class="font-display text-2xl font-semibold">Ubicación</h3>
+              <p class="mt-3 flex items-start gap-2.5 text-cafe-700">
+                <svg aria-hidden="true" viewBox="0 0 24 24" class="mt-0.5 h-5 w-5 shrink-0 text-canela-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></svg>
+                <span data-campo="direccion"></span>
+              </p>
+              <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+                <a id="como-llegar" class="inline-flex items-center justify-center gap-2 rounded-full bg-cafe-900 px-6 py-3.5 font-semibold text-crema-50 transition hover:bg-cafe-800 active:scale-[.98]">
+                  <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
+                  Cómo llegar
+                </a>
+                <a data-whatsapp class="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 font-semibold text-cafe-900 ring-1 ring-inset ring-cafe-900/20 transition hover:bg-crema-100 active:scale-[.98]">Escríbenos por WhatsApp</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 5. Pie de página -->
+  <footer class="bg-cafe-950 pb-28 pt-12 text-sm text-crema-200/70 sm:pb-12">
+    <div class="mx-auto flex max-w-6xl flex-col items-center gap-6 px-5 text-center sm:flex-row sm:justify-between sm:px-8 sm:text-left">
+      <div>
+        <p class="font-display text-xl font-semibold text-crema-50" data-campo="nombre"></p>
+        <p class="mt-1">© <span id="anio"></span> <span data-campo="nombre"></span>. <span id="aviso-imagenes"></span></p>
+      </div>
+      <div id="redes" class="flex gap-2"></div>
+      <p>Hecho por <span class="font-semibold text-crema-50">Taller Digital</span></p>
+    </div>
+  </footer>
+
+  <!-- 4. Botón flotante de WhatsApp -->
+  <a data-whatsapp aria-label="Pedir por WhatsApp" title="Pedir por WhatsApp" class="onda fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full bg-[#25D366] text-white shadow-lg shadow-black/25 transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366] sm:bottom-8 sm:right-8 sm:h-16 sm:w-16" style="margin-bottom: env(safe-area-inset-bottom, 0px)">
+    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-7 w-7 sm:h-8 sm:w-8" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" /></svg>
+  </a>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var $ = function (sel, ctx) { return (ctx || document).querySelector(sel); };
+      var $$ = function (sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); };
+      var sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function esc(valor) {
+        return String(valor == null ? "" : valor).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+      function normalizar(texto) {
+        return String(texto == null ? "" : texto).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      }
+
+      /* ── Textos y enlaces ─────────────────────────────────────────── */
+
+      $$("[data-campo]").forEach(function (el) {
+        var valor = CONFIG[el.dataset.campo];
+        if (valor) el.textContent = valor;
+        else el.hidden = true;
+      });
+
+      var numeroWhatsApp = String(CONFIG.whatsapp || "").replace(/\D/g, "");
+      var mensajeWhatsApp = String(CONFIG.mensajeWhatsapp || "").replace(/\{nombre\}/g, CONFIG.nombre || "");
+      var enlaceWhatsApp = "https://wa.me/" + numeroWhatsApp + (mensajeWhatsApp ? "?text=" + encodeURIComponent(mensajeWhatsApp) : "");
+      function enlaceExterno(a, url) {
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+      }
+      $$("[data-whatsapp]").forEach(function (a) { enlaceExterno(a, enlaceWhatsApp); });
+
+      $("#nota-menu").textContent = CONFIG.notaMenu || "";
+      $("#anio").textContent = new Date().getFullYear();
+      $("#aviso-imagenes").textContent = CONFIG.avisoImagenes || "";
+
+      /* ── Imágenes ─────────────────────────────────────────────────── */
+
+      var imagenes = CONFIG.imagenes || {};
+      var fotoPortada = $("#foto-portada");
+      if (imagenes.portada) {
+        var celular = IMAGEN_PORTADA.celular, escritorio = IMAGEN_PORTADA.escritorio;
+        if (esUnsplash(imagenes.portada)) {
+          $("#portada-celular").srcset = srcsetImagen(imagenes.portada, celular.anchos, celular.proporcion);
+          fotoPortada.srcset = srcsetImagen(imagenes.portada, escritorio.anchos, escritorio.proporcion);
+        }
+        fotoPortada.src = urlImagen(imagenes.portada, escritorio.anchos[0], escritorio.proporcion);
+      } else {
+        fotoPortada.hidden = true;
+      }
+
+      var fotoLocal = $("#foto-local");
+      if (imagenes.local) {
+        if (esUnsplash(imagenes.local)) fotoLocal.srcset = srcsetImagen(imagenes.local, [640, 960, 1280], 0.5);
+        fotoLocal.src = urlImagen(imagenes.local, 960, 0.5);
+      } else {
+        fotoLocal.hidden = true;
+      }
+
+      /* ── Productos estrella ───────────────────────────────────────── */
+
+      var favoritos = CONFIG.productosEstrella || [];
+      if (!favoritos.length) $("#favoritos").hidden = true;
+      $("#lista-favoritos").innerHTML = favoritos.map(function (p, i) {
+        var srcset = srcsetImagen(p.imagen, [480, 720, 960], 1.25);
+        return (
+          '<a href="#menu"' + (p.categoria ? ' data-ir-categoria="' + esc(p.categoria) + '"' : "") +
+          ' class="revelar group relative isolate block w-[78%] shrink-0 snap-start overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-cafe-500 to-cafe-900 text-crema-50 shadow-lg shadow-cafe-900/10 sm:w-auto" style="--retraso: ' + i * 90 + 'ms">' +
+            (p.imagen
+              ? '<img src="' + esc(urlImagen(p.imagen, 720, 1.25)) + '"' + (srcset ? ' srcset="' + esc(srcset) + '" sizes="(min-width: 640px) 33vw, 78vw"' : "") +
+                ' alt="" loading="lazy" decoding="async" onerror="this.style.visibility=\'hidden\'" class="aspect-[4/5] w-full object-cover transition duration-700 ease-out group-hover:scale-105" />'
+              : '<div class="aspect-[4/5]"></div>') +
+            '<div aria-hidden="true" class="absolute inset-0 bg-gradient-to-t from-cafe-950/90 via-cafe-950/25 to-transparent"></div>' +
+            '<div class="absolute inset-x-0 bottom-0 p-5 sm:p-6">' +
+              '<h3 class="font-display text-2xl font-semibold">' + esc(p.nombre) + "</h3>" +
+              (p.descripcion ? '<p class="mt-1.5 text-sm leading-relaxed text-crema-100/85">' + esc(p.descripcion) + "</p>" : "") +
+              '<span class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-crema-50/15 px-4 py-2 text-sm font-semibold backdrop-blur transition group-hover:bg-crema-50/25">Ver en el menú' +
+                '<svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4 transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>' +
+              "</span>" +
+            "</div>" +
+          "</a>"
+        );
+      }).join("");
+
+      /* ── Menú ─────────────────────────────────────────────────────── */
+
+      function formatoPrecio(n) {
+        var entero = Number(n) % 1 === 0;
+        try {
+          return new Intl.NumberFormat("es-MX", {
+            style: "currency", currency: CONFIG.moneda || "MXN",
+            minimumFractionDigits: entero ? 0 : 2, maximumFractionDigits: 2,
+          }).format(n);
+        } catch (e) {
+          return "$" + n;
+        }
+      }
+
+      function htmlProducto(p) {
+        var tienePrecio = p.precio !== undefined && p.precio !== null && p.precio !== "";
+        var porTamano = tienePrecio && typeof p.precio === "object";
+        return (
+          '<article class="border-b border-dashed border-cafe-900/15 py-5">' +
+            '<div class="flex items-baseline gap-3">' +
+              '<h3 class="min-w-0 font-semibold text-cafe-900">' + esc(p.nombre) + "</h3>" +
+              (p.etiqueta ? '<span class="shrink-0 rounded-full bg-canela-500/10 px-2 py-0.5 text-[0.6875rem] font-bold uppercase tracking-wide text-canela-700">' + esc(p.etiqueta) + "</span>" : "") +
+              (tienePrecio && !porTamano
+                ? '<span aria-hidden="true" class="relative -top-1 min-w-[1.5rem] flex-1 border-b-2 border-dotted border-cafe-900/20"></span>' +
+                  '<span class="shrink-0 font-display text-lg font-semibold tabular-nums text-cafe-800">' + esc(formatoPrecio(p.precio)) + "</span>"
+                : "") +
+            "</div>" +
+            (p.descripcion ? '<p class="mt-1 text-sm leading-relaxed text-cafe-600">' + esc(p.descripcion) + "</p>" : "") +
+            (porTamano
+              ? '<ul class="mt-3 flex flex-wrap gap-2">' +
+                  Object.keys(p.precio).map(function (tamano) {
+                    return '<li class="inline-flex items-baseline gap-1.5 rounded-full bg-crema-50 px-3 py-1 text-sm ring-1 ring-inset ring-cafe-900/10">' +
+                      '<span class="text-cafe-600">' + esc(tamano) + "</span>" +
+                      '<span class="font-semibold tabular-nums text-cafe-900">' + esc(formatoPrecio(p.precio[tamano])) + "</span></li>";
+                  }).join("") +
+                "</ul>"
+              : "") +
+          "</article>"
+        );
+      }
+
+      var categorias = (CONFIG.menu || []).filter(function (c) { return c && c.id && c.productos && c.productos.length; });
+      var pestanas = $("#pestanas-menu");
+      var paneles = $("#paneles-menu");
+
+      pestanas.innerHTML = categorias.map(function (c, i) {
+        return '<button type="button" role="tab" id="pestana-' + esc(c.id) + '" aria-controls="panel-' + esc(c.id) + '" aria-selected="' + (i === 0) + '" tabindex="' + (i === 0 ? 0 : -1) + '" data-categoria="' + esc(c.id) + '"' +
+          ' class="shrink-0 whitespace-nowrap rounded-full border border-cafe-900/15 px-4 py-2 text-sm font-semibold text-cafe-800 transition hover:border-cafe-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-canela-500 focus-visible:ring-offset-2 focus-visible:ring-offset-crema-100 aria-selected:border-cafe-900 aria-selected:bg-cafe-900 aria-selected:text-crema-50">' +
+          esc(c.nombre) + "</button>";
+      }).join("");
+
+      paneles.innerHTML = categorias.map(function (c, i) {
+        return '<div role="tabpanel" id="panel-' + esc(c.id) + '" aria-labelledby="pestana-' + esc(c.id) + '" tabindex="0" class="panel-menu grid gap-x-12 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-canela-500 md:grid-cols-2"' + (i === 0 ? "" : " hidden") + ">" +
+          c.productos.map(htmlProducto).join("") +
+          (c.nota ? '<p class="pt-5 text-sm text-cafe-600 md:col-span-2">' + esc(c.nota) + "</p>" : "") +
+          "</div>";
+      }).join("");
+
+      function activarCategoria(id, enfocar) {
+        $$('[role="tab"]', pestanas).forEach(function (tab) {
+          var activa = tab.dataset.categoria === id;
+          tab.setAttribute("aria-selected", activa);
+          tab.tabIndex = activa ? 0 : -1;
+          if (!activa) return;
+          if (enfocar) tab.focus({ preventScroll: true });
+          // Centra la pestaña en la barra (útil en celular, donde la barra se desliza de lado).
+          var izquierda = tab.offsetLeft - (pestanas.clientWidth - tab.offsetWidth) / 2;
+          if (pestanas.scrollTo) pestanas.scrollTo({ left: izquierda, behavior: sinMovimiento ? "auto" : "smooth" });
+          else pestanas.scrollLeft = izquierda;
+        });
+        $$('[role="tabpanel"]', paneles).forEach(function (panel) {
+          panel.hidden = panel.id !== "panel-" + id;
+        });
+      }
+
+      // Si ya bajaste dentro de una categoría larga, sube para ver la nueva desde el principio.
+      // El límite es donde queda la barra cuando está pegada (no donde está ahora: si la categoría
+      // nueva es más corta, la barra puede ir saliendo de la pantalla en este momento).
+      function alinearMenu() {
+        var barra = pestanas.parentElement;
+        var limite = (parseFloat(getComputedStyle(barra).top) || 0) + barra.offsetHeight;
+        var inicio = paneles.getBoundingClientRect().top;
+        if (inicio < limite) window.scrollTo({ top: window.pageYOffset + inicio - limite, behavior: sinMovimiento ? "auto" : "smooth" });
+      }
+
+      pestanas.addEventListener("click", function (e) {
+        var tab = e.target.closest('[role="tab"]');
+        if (!tab) return;
+        activarCategoria(tab.dataset.categoria);
+        alinearMenu();
+      });
+
+      pestanas.addEventListener("keydown", function (e) {
+        var tabs = $$('[role="tab"]', pestanas);
+        var i = tabs.indexOf(document.activeElement);
+        if (i < 0) return;
+        var destino = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (destino === undefined) return;
+        e.preventDefault();
+        activarCategoria(tabs[(destino + tabs.length) % tabs.length].dataset.categoria, true);
+      });
+
+      $$("[data-ir-categoria]").forEach(function (a) {
+        a.addEventListener("click", function () { activarCategoria(a.dataset.irCategoria); });
+      });
+
+      /* ── Horario ──────────────────────────────────────────────────── */
+
+      var DIAS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"]; // orden de Date#getDay()
+      var NOMBRE_DIA = { lunes: "Lunes", martes: "Martes", miercoles: "Miércoles", jueves: "Jueves", viernes: "Viernes", sabado: "Sábado", domingo: "Domingo" };
+      var SEMANA = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
+
+      // { lunes: [[apertura, cierre], ...] } en minutos desde las 0:00.
+      // Si cierra después de medianoche, el cierre pasa de 1440. Los días que falten cuentan como cerrados.
+      var horario = {};
+      var textoSinEntender = {}; // días con un formato que no se pudo leer: se muestran tal cual
+      Object.keys(CONFIG.horario || {}).forEach(function (dia) {
+        var clave = normalizar(dia);
+        if (!NOMBRE_DIA[clave]) return console.warn("Horario: no reconozco el día", dia);
+        var valor = normalizar(CONFIG.horario[dia]);
+        var turnos = valor === "" || valor === "cerrado" ? [] : valor.split(",").map(function (turno) {
+          var m = turno.match(/^\s*(\d{1,2})(?::(\d{2}))?\s*[-–]\s*(\d{1,2})(?::(\d{2}))?\s*$/);
+          if (!m || +m[1] > 24 || +m[3] > 24 || +(m[2] || 0) > 59 || +(m[4] || 0) > 59) return null;
+          var apertura = m[1] * 60 + +(m[2] || 0);
+          var cierre = m[3] * 60 + +(m[4] || 0);
+          if (cierre <= apertura) cierre += 1440;
+          return [apertura, cierre];
+        });
+        if (turnos.indexOf(null) !== -1) {
+          console.warn("Horario: no entendí", dia, "→", CONFIG.horario[dia], '(usa "8:00-21:00")');
+          textoSinEntender[clave] = String(CONFIG.horario[dia]);
+        }
+        horario[clave] = turnos.filter(Boolean);
+      });
+      // Con un día ilegible no se puede asegurar si está abierto: mejor no mostrar el aviso.
+      var horarioConfiable = Object.keys(textoSinEntender).length === 0;
+
+      function turnosDe(indiceDia) {
+        return horario[DIAS[(indiceDia % 7 + 7) % 7]] || [];
+      }
+
+      // Día y minuto actuales en la zona horaria del negocio (no la del visitante).
+      function ahoraEnNegocio() {
+        var fecha = new Date();
+        try {
+          var partes = {};
+          new Intl.DateTimeFormat("en-US", {
+            timeZone: CONFIG.zonaHoraria || undefined,
+            weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23",
+          }).formatToParts(fecha).forEach(function (p) { partes[p.type] = p.value; });
+          var dia = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(partes.weekday);
+          if (dia < 0) throw new Error("día");
+          return { dia: dia, minutos: (+partes.hour % 24) * 60 + +partes.minute };
+        } catch (e) {
+          return { dia: fecha.getDay(), minutos: fecha.getHours() * 60 + fecha.getMinutes() };
+        }
+      }
+
+      var ESPACIO_FIJO = String.fromCharCode(160); // para que "9:00 pm" no se parta en dos líneas
+      function formatoHora(minutos) {
+        var m = (minutos % 1440 + 1440) % 1440;
+        var h = Math.floor(m / 60);
+        return (h % 12 || 12) + ":" + String(m % 60).padStart(2, "0") + ESPACIO_FIJO + (h < 12 ? "am" : "pm");
+      }
+      function aLaHora(minutos) { // "a la 1:00 pm" / "a las 9:00 pm"
+        var h = Math.floor(((minutos % 1440 + 1440) % 1440) / 60);
+        return (h % 12 === 1 ? "a la " : "a las ") + formatoHora(minutos);
+      }
+
+      function calcularEstado(ahora) {
+        var min = ahora.minutos, i, t, turnos;
+        turnos = turnosDe(ahora.dia - 1); // turno de ayer que sigue después de medianoche
+        for (i = 0; i < turnos.length; i++) {
+          t = turnos[i];
+          if (t[1] > 1440 && min < t[1] - 1440) return { abierto: true, cierra: t[1], faltan: t[1] - 1440 - min };
+        }
+        turnos = turnosDe(ahora.dia);
+        for (i = 0; i < turnos.length; i++) {
+          t = turnos[i];
+          if (min >= t[0] && min < t[1]) return { abierto: true, cierra: t[1], faltan: t[1] - min };
+        }
+        for (var d = 0; d <= 7; d++) { // próxima apertura (hasta el mismo día de la semana siguiente)
+          var siguiente = turnosDe(ahora.dia + d)
+            .map(function (t) { return t[0]; })
+            .filter(function (apertura) { return d > 0 || apertura > min; })
+            .sort(function (a, b) { return a - b; })[0];
+          if (siguiente !== undefined) return { abierto: false, abre: siguiente, enDias: d, dia: (ahora.dia + d) % 7 };
+        }
+        return null; // no hay horario configurado
+      }
+
+      function textoEstado(estado) {
+        if (!estado) return null;
+        if (estado.abierto) {
+          return estado.faltan <= 30
+            ? { tono: "pronto", texto: "Cierra pronto · " + formatoHora(estado.cierra) }
+            : { tono: "abierto", texto: "Abierto ahora · cierra " + aLaHora(estado.cierra) };
+        }
+        var dia = NOMBRE_DIA[DIAS[estado.dia]].toLowerCase();
+        var cuando = estado.enDias === 0 ? "hoy" : estado.enDias === 1 ? "mañana" : estado.enDias === 7 ? "el próximo " + dia : "el " + dia;
+        return { tono: "cerrado", texto: "Cerrado · abre " + cuando + " " + aLaHora(estado.abre) };
+      }
+
+      var COLOR_PUNTO = { abierto: "bg-emerald-400", pronto: "bg-amber-400", cerrado: "bg-rose-400" };
+
+      function pintarHorario() {
+        var ahora = ahoraEnNegocio();
+        var info = horarioConfiable ? textoEstado(calcularEstado(ahora)) : null;
+        $$("[data-estado]").forEach(function (el) {
+          el.hidden = !info;
+          if (!info) return;
+          el.innerHTML =
+            '<span aria-hidden="true" class="relative flex h-2.5 w-2.5">' +
+              (info.tono === "abierto" ? '<span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 motion-safe:animate-ping"></span>' : "") +
+              '<span class="relative inline-flex h-2.5 w-2.5 rounded-full ' + COLOR_PUNTO[info.tono] + '"></span>' +
+            "</span>" + esc(info.texto);
+        });
+
+        var hoy = DIAS[ahora.dia];
+        $("#tabla-horario").innerHTML = SEMANA.map(function (dia) {
+          var esHoy = dia === hoy;
+          var turnos = horario[dia] || [];
+          var horas = textoSinEntender[dia] ? esc(textoSinEntender[dia])
+            : turnos.length ? turnos.map(function (t) { return formatoHora(t[0]) + " – " + formatoHora(t[1]); }).join("<br />")
+            : "Cerrado";
+          return (
+            '<div class="flex items-baseline justify-between gap-4 rounded-xl px-3 py-2.5 ' + (esHoy ? "bg-crema-100 font-semibold text-cafe-900" : "text-cafe-700") + '"' + (esHoy ? ' aria-current="date"' : "") + ">" +
+              '<dt class="flex items-center gap-2">' + NOMBRE_DIA[dia] +
+                (esHoy ? '<span class="rounded-full bg-cafe-900 px-2 py-0.5 text-[0.6875rem] font-bold uppercase tracking-wide text-crema-50">Hoy</span>' : "") +
+              "</dt>" +
+              '<dd class="text-right tabular-nums">' + horas + "</dd>" +
+            "</div>"
+          );
+        }).join("");
+      }
+
+      pintarHorario();
+      setInterval(pintarHorario, 60 * 1000);
+
+      /* ── Ubicación ────────────────────────────────────────────────── */
+
+      var direccion = CONFIG.direccion || "";
+      var mapaEmbed = String(CONFIG.mapaEmbed || "");
+      var srcPegado = mapaEmbed.match(/src="([^"]+)"/); // por si pegaron el <iframe> completo
+      if (srcPegado) mapaEmbed = srcPegado[1];
+      var mapa = $("#mapa");
+      mapa.title = "Mapa: ubicación de " + (CONFIG.nombre || "el negocio");
+      mapa.src = mapaEmbed || "https://maps.google.com/maps?q=" + encodeURIComponent(direccion) + "&z=16&hl=es&output=embed";
+      enlaceExterno($("#como-llegar"), CONFIG.enlaceMaps || "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(direccion));
+
+      /* ── Redes sociales ───────────────────────────────────────────── */
+
+      var REDES = {
+        instagram: {
+          nombre: "Instagram", base: "https://www.instagram.com/",
+          icono: '<svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></svg>',
+        },
+        facebook: {
+          nombre: "Facebook", base: "https://www.facebook.com/",
+          icono: '<svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>',
+        },
+        tiktok: {
+          nombre: "TikTok", base: "https://www.tiktok.com/@",
+          icono: '<svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5" /><path d="M14 3c.4 2.8 2.2 4.6 5 5" /></svg>',
+        },
+      };
+      var redes = Object.keys(CONFIG.redes || {}).filter(function (red) {
+        return REDES[red] && String(CONFIG.redes[red] || "").trim();
+      });
+      $("#redes").hidden = !redes.length;
+      $("#redes").innerHTML = redes.map(function (red) {
+        var valor = String(CONFIG.redes[red]).trim();
+        var url = /^https?:\/\//.test(valor) ? valor : REDES[red].base + valor.replace(/^@/, "");
+        return '<a href="' + esc(url) + '" target="_blank" rel="noopener" aria-label="' + REDES[red].nombre + '" class="grid h-10 w-10 place-items-center rounded-full ring-1 ring-inset ring-crema-50/20 transition hover:bg-crema-50/10 hover:text-crema-50">' + REDES[red].icono + "</a>";
+      }).join("");
+
+      /* ── Encabezado y animaciones al hacer scroll ─────────────────── */
+
+      var encabezado = $("#encabezado");
+      var revelables = $$(".revelar");
+
+      if ("IntersectionObserver" in window) {
+        // El encabezado se vuelve sólido cuando la portada queda detrás de él.
+        new IntersectionObserver(function (entradas) {
+          encabezado.classList.toggle("solido", !entradas[0].isIntersecting);
+        }, { rootMargin: "-64px 0px 0px 0px" }).observe($("#inicio"));
+
+        var observador = new IntersectionObserver(function (entradas) {
+          entradas.forEach(function (entrada) {
+            if (!entrada.isIntersecting) return;
+            entrada.target.classList.add("es-visible");
+            observador.unobserve(entrada.target);
+          });
+        }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+        revelables.forEach(function (el) { observador.observe(el); });
+      } else {
+        encabezado.classList.add("solido");
+        revelables.forEach(function (el) { el.classList.add("es-visible"); });
+      }
+    })();
+  </script>
+</body>
+</html>
