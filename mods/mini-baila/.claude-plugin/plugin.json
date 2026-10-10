@@ -1,0 +1,6 @@
+{
+  "name": "mini-baila",
+  "version": "0.1.0",
+  "description": "Un mini Claude baila sobre el prompt mientras Claude edita o escribe código.",
+  "types": "./types/index.d.ts"
+}
