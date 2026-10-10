@@ -9,7 +9,10 @@ Un mini Claude naranja baila sobre el prompt mientras Claude trabaja.
 
 ## Dónde se dibuja
 
-La banda solo aparece en la **terminal** y en la **app de escritorio**. En la app del celular y en la web no se dibuja.
+- **Terminal y app de escritorio:** una banda sobre el prompt, con la figura hecha de caracteres de bloque.
+- **App del celular:** el motor no levanta esa banda ahí, así que el mod usa un **panel** con el mismo baile dibujado como imagen vectorial (`Svg`). Se abre al empezar el turno de Claude, solo si hay un celular conectado en ese momento, y se cierra al terminar. Si el celular conecta a mitad de un turno, el panel aparece en el siguiente.
+- **Si el celular no coloca el panel** (el motor decide según el ancho de la pantalla), el mod avisa una vez con un aviso corto que dice el motivo y deja una línea de estado con un muñequito de texto (`\o/`) que baila mientras Claude trabaja.
+- Si hay terminal o escritorio y celular conectados a la vez, el panel también se dibuja ahí (en la terminal con la figura de bloques, en el escritorio con el dibujo vectorial), además de la banda. Es así a propósito: un panel que una pantalla deja vacío se cierra.
 
 ## Instalarlo
 
@@ -32,11 +35,11 @@ claude plugin validate mods/mini-baila
 claude plugin test mods/mini-baila
 ```
 
-Las pruebas simulan una sesión: que baile al empezar el turno, que cambie de cuadro, que el letrero cambie al editar, que se detenga al terminar, que un subagente no lo apague, que ceda ante un cuestionario y que funcione en terminal y escritorio.
+Las pruebas simulan una sesión: que baile al empezar el turno, que cambie de cuadro, que el letrero cambie al editar, que se detenga al terminar, que un subagente no lo apague, que ceda ante un cuestionario, que funcione en terminal y escritorio, que el panel del celular dibuje el baile vectorial y lo cambie de cuadro, y que la terminal nunca deje el panel vacío.
 
 ## Lo que no está verificado
 
-Se probó el contenido y el comportamiento de la banda, no cómo se ve en una pantalla real: la figura usa caracteres de bloque de Unicode y puede verse distinta según la tipografía del terminal. La instalación con `/plugin install` tampoco se ha probado desde otra computadora.
+Se probó el contenido y el comportamiento de la banda y del panel, no cómo se ven en una pantalla real. **No se probó la parte que detecta el celular y abre el panel** (el kit de pruebas no puede simular qué pantallas están conectadas), ni si la app del celular coloca el panel: la figura usa caracteres de bloque de Unicode y puede verse distinta según la tipografía del terminal. La instalación con `/plugin install` tampoco se ha probado desde otra computadora.
 
 ## Cambiar algo
 

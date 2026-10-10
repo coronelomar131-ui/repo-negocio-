@@ -128,3 +128,64 @@ test('también baila en la app de escritorio', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: DANCING })).toBeDefined()
   await ui.unmount()
 })
+
+const pane = (surface: 'mobile' | 'desktop' | 'terminal') =>
+  ({
+    plugin: 'mini-baila',
+    surface,
+    component: 'Pane',
+    requestId: 'baila',
+    props: { title: 'Mini Claude', isFocused: false, bodyColumns: 40, placement: 'inline', scroll: { offset: 0, bodyRows: 8 }, view: {} },
+  }) as const
+
+test('en el celular el baile es un dibujo vectorial dentro del panel', async ($, on) => {
+  mock.clock(on)
+  engine(on)
+  await $.session.start({ ...start, surface: 'mobile' })
+  await $.turn.start(turn)
+
+  const ui = await $.ui.mount(pane('mobile'))
+  expect(await ui.find({ type: 'Svg' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: DANCING })).toBeDefined()
+  await ui.unmount()
+})
+
+test('el dibujo del celular cambia de cuadro con el reloj', async ($, on) => {
+  const clock = mock.clock(on)
+  engine(on)
+  await $.session.start({ ...start, surface: 'mobile' })
+  await $.turn.start(turn)
+
+  const first = await $.ui.mount(pane('mobile'))
+  const before = JSON.stringify(await first.find({ type: 'Svg' }))
+  await first.unmount()
+
+  await clock.advance(200)
+  const second = await $.ui.mount(pane('mobile'))
+  const after = JSON.stringify(await second.find({ type: 'Svg' }))
+  await second.unmount()
+
+  expect(after).not.toBe(before)
+})
+
+test('sin turno en marcha el panel del celular no dibuja nada', async ($, on) => {
+  mock.clock(on)
+  engine(on)
+  await $.session.start({ ...start, surface: 'mobile' })
+
+  const ui = await $.ui.mount(pane('mobile'))
+  expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('la terminal nunca deja el panel vacío: dibuja la figura de bloques', async ($, on) => {
+  mock.clock(on)
+  engine(on)
+  await $.session.start(start)
+  await $.turn.start(turn)
+
+  const ui = await $.ui.mount(pane('terminal'))
+  expect(await ui.find({ type: 'Text', text: DANCING })).toBeDefined()
+  expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+  await ui.unmount()
+})
