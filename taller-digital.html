@@ -292,8 +292,42 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
 .guion-c h3 { font-family: var(--titulo); font-weight: 500; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--texto-3); margin-top: 8px; }
 .guion-c ul { list-style: disc; }
 .guion-c ol, .guion-c ul { padding-left: 20px; display: grid; gap: 4px; }
+.guion .nuevo { padding: 0; }
 .guion-c p, .guion-c li { font-size: 16px; line-height: 1.4; }
 .neg { border-top: 1px solid var(--linea); }
+
+/* Conteo de mostrador: palitos, como se lleva una cuenta a mano */
+.conteo { display: flex; align-items: center; gap: 18px; margin: 0 var(--m) 22px; padding: 14px 0; border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea); }
+.marcas { position: relative; display: flex; gap: 9px; height: 44px; padding: 0 6px 0 2px; flex: none; }
+.marcas i { position: relative; width: 4px; height: 100%; border-radius: 2px; background: var(--linea); }
+.marcas i::after { content: ""; position: absolute; inset: 0; border-radius: 2px; background: var(--texto); opacity: 0; transform: translateY(10px); transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.marcas i.on::after { opacity: 1; transform: translateY(0); }
+.marcas .tacha { position: absolute; left: -7px; right: -5px; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--ambar); opacity: 0; transform: rotate(-24deg) translateX(-12px); transition: opacity 240ms var(--ease-out) 90ms, transform 240ms var(--ease-out) 90ms; }
+.marcas .tacha.on { opacity: 1; transform: rotate(-24deg) translateX(0); }
+.cifra { display: grid; line-height: 1; }
+.cifra strong { font-family: var(--titulo); font-weight: 700; font-size: 44px; font-variant-numeric: tabular-nums; }
+.cifra strong.golpe { animation: golpe-num 240ms var(--ease-out) both; }
+.cifra span { margin-top: 4px; font-size: 15px; color: var(--texto-2); }
+@keyframes golpe-num { from { opacity: 0.4; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Sello de estado: como el COTIZADO de la nota */
+.sello-e { display: inline-block; padding: 1px 7px 0; border: 1.5px solid currentColor; border-radius: 3px; font-family: var(--titulo); font-weight: 700; font-size: 14px; letter-spacing: 0.1em; line-height: 1.35; text-transform: uppercase; transform: rotate(-2deg); color: var(--texto-2); }
+.sello-e.porvisitar { color: var(--texto-3); border-style: dashed; }
+.sello-e.interesa { color: var(--wa); }
+.sello-e.no { color: var(--texto-3); }
+.sello-e.sellar { animation: sellar 260ms var(--ease-out) both; }
+@keyframes sellar { from { opacity: 0; transform: rotate(-7deg) scale(1.28); } 60% { opacity: 1; } to { opacity: 1; transform: rotate(-2deg) scale(1); } }
+.neg-cab { position: relative; }
+.neg-cab::before { content: ""; position: absolute; inset: 0; background: oklch(1 0 0 / 0.06); opacity: 0; transition: opacity 120ms var(--ease-out); pointer-events: none; }
+.neg-cab:active::before { opacity: 1; }
+.neg-det { animation: entra 220ms var(--ease-out) both; }
+.neg.nuevo-ya::after { content: ""; position: absolute; inset: 0; background: oklch(1 0 0 / 0.10); pointer-events: none; animation: resalte 900ms var(--ease-out) both; }
+.neg { position: relative; }
+@keyframes resalte { from { opacity: 1; } to { opacity: 0; } }
+.guion[open] .guion-c { animation: entra 240ms var(--ease-out) both; }
+.vacio.libreta { background-image: repeating-linear-gradient(to bottom, transparent 0 35px, var(--linea) 35px 36px); padding-bottom: 72px; line-height: 36px; }
+.vacio.libreta strong { line-height: 1.1; margin-bottom: 8px; }
+@media (hover: hover) and (pointer: fine) { .neg-cab:hover::before { opacity: 0.6; } }
 .neg-cab { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: 100%; min-height: 64px; padding: 14px var(--m) 14px; border: 0; background: transparent; text-align: left; align-items: center; }
 .neg-cab .nombre { grid-column: 1; }
 .neg-cab .meta { grid-column: 1; font-size: 15px; color: var(--texto-2); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
@@ -310,7 +344,15 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
 .estados button[aria-pressed="true"] { background: var(--texto); color: var(--fondo); border-color: transparent; }
 .acc { display: flex; flex-wrap: wrap; gap: 10px; }
 .pregunta-crm { font-family: var(--cuerpo); text-transform: none; letter-spacing: 0; font-size: 16px; font-weight: 500; color: var(--texto-2); }
-@media (prefers-reduced-motion: reduce) { .neg.anim { animation-name: aparece; } }
+@media (prefers-reduced-motion: reduce) {
+  .neg.anim, .neg-det, .guion[open] .guion-c { animation-name: aparece; }
+  .sello-e.sellar { animation-name: aparece-sello-e; }
+  @keyframes aparece-sello-e { from { opacity: 0; } to { opacity: 1; } }
+  .cifra strong.golpe { animation-name: aparece; }
+  .marcas i::after { transform: none; }
+  .marcas .tacha, .marcas .tacha.on { transform: rotate(-24deg); }
+  .neg.nuevo-ya::after { animation-duration: 300ms; }
+}
 .neg.anim { animation: entra 320ms var(--ease-out) both; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -389,6 +431,10 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
 
   <section class="vista" id="vista-prospectos" aria-labelledby="pro-t" hidden>
     <h2 class="pregunta" id="pro-t" tabindex="-1">¿A quién le sigues?</h2>
+    <div class="conteo" id="conteo" role="group" aria-label="Conversaciones">
+      <div class="marcas" aria-hidden="true"><i></i><i></i><i></i><i></i><span class="tacha"></span></div>
+      <div class="cifra"><strong id="c-n" aria-live="polite">0</strong><span id="c-t">de 5 conversaciones</span></div>
+    </div>
     <details class="guion" id="guion">
       <summary>Guion de visita</summary>
       <div class="guion-c">
@@ -412,27 +458,32 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
         </ul>
       </div>
     </details>
-    <form class="nuevo" id="nuevo" autocomplete="off">
-      <label class="etq" for="n-nombre">Negocio
-        <input class="in" id="n-nombre" required maxlength="80" placeholder="Refaccionaria San Juan">
-      </label>
-      <div class="fila2">
-        <label class="etq" for="n-colonia">Colonia
-          <input class="in" id="n-colonia" maxlength="60" placeholder="Doctores">
-        </label>
-        <label class="etq" for="n-tel">Teléfono
-          <input class="in" id="n-tel" type="tel" inputmode="tel" maxlength="20" placeholder="55 1234 5678">
-        </label>
+    <details class="guion" id="guion-nuevo">
+      <summary>Agregar negocio</summary>
+      <div class="guion-c">
+        <form class="nuevo" id="nuevo" autocomplete="off">
+          <label class="etq" for="n-nombre">Negocio
+            <input class="in" id="n-nombre" required maxlength="80" placeholder="Refaccionaria San Juan">
+          </label>
+          <div class="fila2">
+            <label class="etq" for="n-colonia">Colonia
+              <input class="in" id="n-colonia" maxlength="60" placeholder="Doctores">
+            </label>
+            <label class="etq" for="n-tel">Teléfono
+              <input class="in" id="n-tel" type="tel" inputmode="tel" maxlength="20" placeholder="55 1234 5678">
+            </label>
+          </div>
+          <div><button class="btn lleno" type="submit">Agregar negocio</button></div>
+        </form>
       </div>
-      <div><button class="btn lleno" type="submit">Agregar negocio</button></div>
-    </form>
+    </details>
     <div class="chips" id="chips-pro" role="group" aria-label="Filtrar por estado"></div>
     <p class="cuenta" id="cuenta-pro" aria-live="polite"></p>
     <ul id="lista-pro"></ul>
     <div class="herr">
       <button class="btn" id="exportar" type="button">Exportar a Excel</button>
     </div>
-    <p class="detalle" style="padding: 14px var(--m) 0">Los datos se guardan solo en este teléfono. Si borras los datos del navegador, se pierden: exporta de vez en cuando.</p>
+    <p class="detalle" style="padding: 14px var(--m) 0">Los datos se guardan solo en este teléfono. Si borras los datos del navegador, se pierden: exporta de vez en cuando. Una conversación cuenta cuando anotas al menos una respuesta.</p>
   </section>
 </div>
 
@@ -741,7 +792,7 @@ function guardar() {
   try { localStorage.setItem(LLAVE, JSON.stringify(prospectos)); guardadoOk = true; }
   catch { if (guardadoOk) aviso("No se pudo guardar en este navegador"); guardadoOk = false; }
 }
-function guardarPronto() { clearTimeout(guardaT); guardaT = setTimeout(guardar, 300); }
+function guardarPronto() { clearTimeout(guardaT); guardaT = setTimeout(guardar, 300); dibujarConteo(); }
 
 const fechaHoy = () => {
   const d = new Date();
@@ -758,11 +809,27 @@ function seguimiento(p) {
   if (p.seguir === hoy) return { texto: "Hoy", ya: true };
   return { texto: etiquetaFecha(p.seguir), ya: false };
 }
+const conversaciones = () => prospectos.filter((p) => ["r1", "r2", "r3"].some((k) => (p[k] || "").trim())).length;
+let convPrevio = 0;
+function dibujarConteo() {
+  const n = conversaciones(), meta = 5;
+  [...document.querySelectorAll("#conteo .marcas i")].forEach((i, k) => i.classList.toggle("on", n > k));
+  document.querySelector("#conteo .tacha").classList.toggle("on", n >= meta);
+  const cifra = $("c-n");
+  cifra.textContent = n;
+  $("c-t").textContent = n >= meta ? (n === 1 ? "conversación · meta cumplida" : "conversaciones · meta cumplida") : "de 5 conversaciones";
+  if (n > convPrevio) { cifra.classList.remove("golpe"); void cifra.offsetWidth; cifra.classList.add("golpe"); }
+  convPrevio = n;
+}
 const pendientes = () => prospectos.filter((p) => p.seguir && p.seguir <= fechaHoy() && p.estado !== "no").length;
 
+let proPrevio = "";
 function dibujarDockPro() {
   const sub = $("d-pro"), n = pendientes();
-  sub.textContent = n ? n + (n === 1 ? " para hoy" : " para hoy") : prospectos.length ? prospectos.length + " negocios" : "Vacía";
+  const t = n ? n + " para hoy" : prospectos.length ? prospectos.length + (prospectos.length === 1 ? " negocio" : " negocios") : "Vacía";
+  sub.textContent = t;
+  if (proPrevio && t !== proPrevio) { sub.classList.remove("golpe"); void sub.offsetWidth; sub.classList.add("golpe"); }
+  proPrevio = t;
 }
 
 const el = (tag, cls, texto) => { const e = document.createElement(tag); if (cls) e.className = cls; if (texto !== undefined) e.textContent = texto; return e; };
@@ -792,7 +859,7 @@ function detalle(p) {
   const estados = el("div", "estados"); estados.setAttribute("role", "group"); estados.setAttribute("aria-label", "Estado");
   ESTADOS.forEach((s) => {
     const b = el("button", "", s.nombre); b.type = "button"; b.setAttribute("aria-pressed", String(p.estado === s.id));
-    b.addEventListener("click", () => { p.estado = s.id; guardar(); dibujarProspectos(); });
+    b.addEventListener("click", () => { if (p.estado === s.id) return; p.estado = s.id; selladoId = p.id; guardar(); dibujarProspectos(); selladoId = null; });
     estados.appendChild(b);
   });
   d.appendChild(estados);
@@ -825,6 +892,8 @@ function detalle(p) {
 }
 
 let vistosPro = new Set();
+let selladoId = null;
+let resalteId = null;
 function dibujarProspectos() {
   const lista = $("lista-pro");
   lista.innerHTML = "";
@@ -834,7 +903,7 @@ function dibujarProspectos() {
     .sort((a, b) => ((a.seguir || "9") > (b.seguir || "9") ? 1 : (a.seguir || "9") < (b.seguir || "9") ? -1 : orden[a.estado] - orden[b.estado] || b.id - a.id));
   $("cuenta-pro").textContent = prospectos.length === 0 ? "" : filas.length + (filas.length === 1 ? " negocio" : " negocios");
   if (prospectos.length === 0) {
-    const li = el("li", "vacio");
+    const li = el("li", "vacio libreta");
     li.appendChild(el("strong", "", "Tu lista está vacía"));
     li.appendChild(document.createTextNode("Agrega el primer negocio que vayas a visitar. La meta de la semana son 5 conversaciones, no una venta."));
     lista.appendChild(li);
@@ -843,14 +912,14 @@ function dibujarProspectos() {
   }
   const nuevosVistos = new Set();
   filas.forEach((p) => {
-    const li = el("li", "neg" + (vistosPro.has(p.id) ? "" : " anim"));
+    const li = el("li", "neg" + (vistosPro.has(p.id) ? "" : " anim") + (resalteId === p.id ? " nuevo-ya" : ""));
     nuevosVistos.add(p.id);
     const cab = el("button", "neg-cab"); cab.type = "button"; cab.setAttribute("aria-expanded", String(abierto === p.id));
     cab.appendChild(el("span", "nombre", p.nombre));
     const meta = el("span", "meta");
-    meta.appendChild(el("span", "punto " + p.estado));
     const e = ESTADOS.find((s) => s.id === p.estado);
-    meta.appendChild(document.createTextNode((e ? e.nombre : "") + (p.colonia ? " · " + p.colonia : "")));
+    meta.appendChild(el("span", "sello-e " + p.estado + (selladoId === p.id ? " sellar" : ""), e ? e.nombre : ""));
+    if (p.colonia) meta.appendChild(document.createTextNode(p.colonia));
     cab.appendChild(meta);
     const sg = seguimiento(p);
     if (sg.texto) cab.appendChild(el("span", "seg" + (sg.ya ? " ya" : ""), sg.texto));
@@ -861,6 +930,7 @@ function dibujarProspectos() {
   });
   vistosPro = nuevosVistos;
   dibujarDockPro();
+  dibujarConteo();
 }
 
 $("nuevo").addEventListener("submit", (ev) => {
@@ -870,7 +940,7 @@ $("nuevo").addEventListener("submit", (ev) => {
   const p = { id: Date.now(), nombre, colonia: $("n-colonia").value.trim(), tel: $("n-tel").value.trim(), estado: "porvisitar", seguir: "", r1: "", r2: "", r3: "", notas: "" };
   prospectos.unshift(p); guardar();
   $("n-nombre").value = ""; $("n-colonia").value = ""; $("n-tel").value = "";
-  filtroPro = "todo"; abierto = p.id; dibujarChipsPro(); dibujarProspectos();
+  filtroPro = "todo"; abierto = p.id; resalteId = p.id; dibujarChipsPro(); dibujarProspectos(); resalteId = null;
   aviso("Agregado: " + nombre);
   $("n-nombre").focus({ preventScroll: true });
 });
@@ -893,6 +963,7 @@ $("exportar").addEventListener("click", () => {
 });
 
 cargar();
+$("guion-nuevo").open = prospectos.length === 0;
 dibujarChipsPro();
 dibujarDockPro();
 </script>
