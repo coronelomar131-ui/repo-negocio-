@@ -283,6 +283,16 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
 .btn.peligro { color: var(--ambar); border-color: oklch(0.82 0.13 82 / 0.45); }
 @media (hover: hover) and (pointer: fine) { .btn:not(.lleno):not(.wa):hover { background: oklch(1 0 0 / 0.10); } }
 .herr { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px var(--m) 0; }
+.guion { margin: 0 var(--m) 20px; border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea); }
+.guion summary { min-height: 52px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; font-family: var(--titulo); font-weight: 600; font-size: 19px; letter-spacing: 0.08em; text-transform: uppercase; }
+.guion summary::-webkit-details-marker { display: none; }
+.guion summary::after { content: "+"; font-size: 26px; color: var(--texto-2); }
+.guion[open] summary::after { content: "−"; }
+.guion-c { padding: 0 0 16px; color: var(--texto-2); display: grid; gap: 8px; }
+.guion-c h3 { font-family: var(--titulo); font-weight: 500; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--texto-3); margin-top: 8px; }
+.guion-c ul { list-style: disc; }
+.guion-c ol, .guion-c ul { padding-left: 20px; display: grid; gap: 4px; }
+.guion-c p, .guion-c li { font-size: 16px; line-height: 1.4; }
 .neg { border-top: 1px solid var(--linea); }
 .neg-cab { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: 100%; min-height: 64px; padding: 14px var(--m) 14px; border: 0; background: transparent; text-align: left; align-items: center; }
 .neg-cab .nombre { grid-column: 1; }
@@ -379,6 +389,29 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
 
   <section class="vista" id="vista-prospectos" aria-labelledby="pro-t" hidden>
     <h2 class="pregunta" id="pro-t" tabindex="-1">¿A quién le sigues?</h2>
+    <details class="guion" id="guion">
+      <summary>Guion de visita</summary>
+      <div class="guion-c">
+        <h3>Al llegar (30 segundos)</h3>
+        <p>“Buenos días, me llamo Eduardo. Estoy aprendiendo cómo llevan sus negocios las refaccionarias de la zona. ¿Me regala 5 minutos? No vengo a vender nada.”</p>
+        <h3>Si dice que sí</h3>
+        <ol>
+          <li>¿Cómo llevan hoy el inventario y las cotizaciones?</li>
+          <li>¿Qué les quita más tiempo o les hace perder dinero?</li>
+          <li>¿Cuánto pagan hoy por resolverlo, en dinero o en tiempo?</li>
+        </ol>
+        <p>Escucha. Anota sus palabras textuales apenas salgas.</p>
+        <h3>Si el dolor es cotizar</h3>
+        <p>“Estoy armando algo chico para eso. ¿Le puedo enseñar un ejemplo en el cel la próxima semana, 5 minutos?”</p>
+        <h3>Reglas</h3>
+        <ul>
+          <li>Sin precio en la primera plática.</li>
+          <li>La demo usa datos inventados y lo dices.</li>
+          <li>Si dice que no, agradece y anota el motivo. También sirve.</li>
+          <li>Meta de la semana: 5 conversaciones, no una venta.</li>
+        </ul>
+      </div>
+    </details>
     <form class="nuevo" id="nuevo" autocomplete="off">
       <label class="etq" for="n-nombre">Negocio
         <input class="in" id="n-nombre" required maxlength="80" placeholder="Refaccionaria San Juan">
