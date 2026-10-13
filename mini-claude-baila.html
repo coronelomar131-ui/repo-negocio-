@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini Claude baila</title>
+<style>
+  :root { --bg: oklch(0.22 0.01 250); --fg: oklch(0.92 0.01 250); --naranja: #D97757; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, sans-serif;
+         display: grid; place-items: center; text-align: center; }
+  main { padding: 16px; }
+  svg { width: min(70vw, 320px); height: auto; display: block; margin: 0 auto; }
+  p { margin: 12px 0 0; font-size: 1.1rem; opacity: .75; min-height: 1.5em; }
+  button { margin-top: 20px; min-height: 44px; padding: 0 20px; border-radius: 10px; border: 0;
+           background: var(--naranja); color: #1c1410; font-size: 1rem; font-weight: 600;
+           transition: transform 120ms cubic-bezier(0.23,1,0.32,1); }
+  button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<main>
+  <div id="figura" role="img" aria-label="Un mini Claude naranja bailando"></div>
+  <p id="letrero">♪ trabajando…</p>
+  <button id="boton" type="button">Pausar</button>
+</main>
+<script>
+const NARANJA = '#D97757', OJOS = '#2B1F1A'
+const POSES = [
+  { shift: 1, up: false, legs: 0, note: '♪' },
+  { shift: 2, up: true,  legs: 1, note: '♫' },
+  { shift: 1, up: false, legs: 1, note: '♪' },
+  { shift: 0, up: true,  legs: 0, note: '♫' },
+]
+function dibujo(p) {
+  const lean = p.shift - 1, lift = p.up ? -1 : 0, armY = p.up ? 1.6 : 4.2
+  const legs = [4, 6.2, 8.6, 10.8].map((x, i) =>
+    `<rect x="${x}" y="7" width="1.2" height="${i % 2 === p.legs ? 1.3 : 2.4}" fill="${NARANJA}"/>`).join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" shape-rendering="crispEdges">
+    <ellipse cx="8" cy="11.3" rx="4.6" ry="0.5" fill="#000" opacity="0.28"/>
+    <g transform="translate(${lean * 0.8} ${lift}) rotate(${lean * 5} 8 8)">
+      <rect x="3" y="2" width="10" height="5" rx="0.6" fill="${NARANJA}"/>
+      <rect x="1" y="${armY}" width="2" height="1.4" fill="${NARANJA}"/>
+      <rect x="13" y="${armY}" width="2" height="1.4" fill="${NARANJA}"/>
+      <rect x="5" y="3.2" width="1" height="1.6" fill="${OJOS}"/>
+      <rect x="10" y="3.2" width="1" height="1.6" fill="${OJOS}"/>
+      ${legs}
+    </g></svg>`
+}
+const fig = document.getElementById('figura'), txt = document.getElementById('letrero'), btn = document.getElementById('boton')
+let n = 0, corre = true
+function paso() { const p = POSES[n % POSES.length]; fig.innerHTML = dibujo(p); txt.textContent = p.note + ' trabajando…'; n++ }
+paso()
+setInterval(() => { if (corre) paso() }, 160)
+btn.addEventListener('click', () => { corre = !corre; btn.textContent = corre ? 'Pausar' : 'Bailar' })
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "taller-digital-mods",
+  "description": "Mods de Claude Code de Taller Digital.",
+  "owner": {
+    "name": "coronelomar131-ui"
+  },
+  "plugins": [
+    {
+      "name": "mini-baila",
+      "source": "./mods/mini-baila"
+    }
+  ]
+}
