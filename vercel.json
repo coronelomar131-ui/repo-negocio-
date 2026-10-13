@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/cotizador", "destination": "/taller-digital.html" }
+    { "source": "/cotizador", "destination": "/index.html" },
+    { "source": "/taller-digital.html", "destination": "/index.html" }
   ]
 }
