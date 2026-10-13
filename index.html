@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es-MX">
+<html lang="es-MX" class="intro">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -363,6 +363,25 @@ textarea.in { padding: 10px 14px; min-height: 76px; resize: vertical; line-heigh
 }
 .neg.anim { animation: entra 320ms var(--ease-out) both; }
 
+/* ── Arranque: la primera pantalla se arma como un mostrador que abre ── */
+@keyframes i-baja { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes i-palabra { from { transform: translateY(108%); } to { transform: translateY(0); } }
+@keyframes i-dock { from { opacity: 0; transform: translate(-50%, 28px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes i-sube { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.pregunta .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: 0.14em; margin-bottom: -0.14em; }
+.pregunta .w > span { display: inline-block; }
+html.intro .cab { animation: i-baja 520ms var(--ease-out) both; }
+html.intro #vista-catalogo .pregunta .w > span { animation: i-palabra 680ms var(--ease-out) both; animation-delay: calc(140ms + var(--i) * 70ms); }
+html.intro #vista-catalogo .buscar { animation: i-baja 640ms var(--ease-out) 300ms both; }
+html.intro #vista-catalogo .cuenta { animation: i-sube 520ms var(--ease-out) 520ms both; }
+html.intro .dock { animation: i-dock 600ms var(--ease-out) 420ms both; }
+
+/* Ficha que viaja de la pieza a la cotización */
+.ficha { position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none; padding: 3px 9px 2px; border-radius: 3px; background: var(--papel); color: var(--tinta); font-family: var(--titulo); font-weight: 700; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; box-shadow: 0 8px 18px oklch(0 0 0 / 0.5); will-change: transform, opacity; }
+
+/* Renglones de rollo de caja: separadores perforados en vez de línea lisa */
+.pieza, .neg { border-top: 0; background-image: radial-gradient(circle at 1.5px 1.5px, oklch(1 0 0 / 0.28) 0.9px, transparent 1.3px); background-size: 8px 3px; background-repeat: repeat-x; background-position: left top; }
+
 @media (prefers-reduced-motion: reduce) {
   .pieza.anim, .vista.der, .vista.izq { animation-name: aparece; }
   [data-estado="imprimiendo"] .nota { animation-name: aparece; animation-duration: 300ms; }
@@ -651,6 +670,7 @@ function dibujarDock() {
 
 function cambiar(id, delta) {
   const p = buscarPieza(id);
+  if (delta > 0) volar(p.no);
   const nueva = Math.max(0, Math.min(p.existencia, (carrito.get(id) || 0) + delta));
   if (nueva === 0) carrito.delete(id); else carrito.set(id, nueva);
   dibujarDock();
@@ -730,6 +750,44 @@ $("salida").addEventListener("click", () => { if ($("vista-cotizacion").dataset.
 $("rasgar").addEventListener("click", rasgar);
 $("reimp").addEventListener("click", imprimir);
 $("ir-cat").addEventListener("click", () => irA("catalogo"));
+
+
+/* ── Arranque y ficha voladora ─────────────────── */
+(function arranque() {
+  const h = document.querySelector("#vista-catalogo .pregunta");
+  const palabras = h.textContent.trim().split(/\s+/);
+  h.textContent = "";
+  palabras.forEach((t, i) => {
+    const w = document.createElement("span"); w.className = "w"; w.style.setProperty("--i", i);
+    const s = document.createElement("span"); s.textContent = t; w.appendChild(s);
+    h.appendChild(w); if (i < palabras.length - 1) h.appendChild(document.createTextNode(" "));
+  });
+  if (poco()) document.documentElement.classList.remove("intro");
+  else setTimeout(() => document.documentElement.classList.remove("intro"), 1500);
+})();
+let ultimoToque = null;
+document.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest && e.target.closest("#lista button");
+  if (b) ultimoToque = { rect: b.getBoundingClientRect(), t: performance.now() };
+}, true);
+function volar(texto) {
+  if (poco() || !ultimoToque || performance.now() - ultimoToque.t > 800) return;
+  const dest = $("p-cot").getBoundingClientRect();
+  if (!dest.width) return;
+  const f = document.createElement("div");
+  f.className = "ficha"; f.textContent = texto; f.setAttribute("aria-hidden", "true");
+  document.body.appendChild(f);
+  const w = f.offsetWidth, h = f.offsetHeight, r = ultimoToque.rect;
+  const x0 = r.left + r.width / 2 - w / 2, y0 = r.top + r.height / 2 - h / 2;
+  const x1 = dest.left + dest.width / 2 - w / 2, y1 = dest.top + dest.height / 2 - h / 2;
+  const a = f.animate([
+    { transform: `translate(${x0}px, ${y0}px) scale(1)`, opacity: 1 },
+    { transform: `translate(${(x0 + x1) / 2}px, ${Math.min(y0, y1) - 36}px) scale(0.92)`, opacity: 1, offset: 0.45 },
+    { transform: `translate(${x1}px, ${y1}px) scale(0.5)`, opacity: 0 }
+  ], { duration: 520, easing: "cubic-bezier(0.77, 0, 0.175, 1)", fill: "forwards" });
+  a.onfinish = a.oncancel = () => f.remove();
+  ultimoToque = null;
+}
 
 const ORDEN = ["catalogo", "cotizacion", "prospectos"];
 const PESTANA = { catalogo: "p-cat", cotizacion: "p-cot", prospectos: "p-pro" };
