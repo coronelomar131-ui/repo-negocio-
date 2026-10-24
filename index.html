@@ -466,15 +466,15 @@ html.intro .dock { animation: i-dock 600ms var(--ease-out) 420ms both; }
       <summary>Guion de visita</summary>
       <div class="guion-c">
         <h3>Al llegar (30 segundos)</h3>
-        <p>“Buenos días, me llamo Eduardo. Estoy aprendiendo cómo llevan sus negocios las refaccionarias de la zona. ¿Me regala 5 minutos? No vengo a vender nada.”</p>
+        <p>“Buenos días, me llamo Eduardo. Estoy aprendiendo cómo llevan sus negocios los restaurantes de la zona. ¿Me regala 5 minutos? No vengo a vender nada.”</p>
         <h3>Si dice que sí</h3>
         <ol>
-          <li>¿Cómo llevan hoy el inventario y las cotizaciones?</li>
+          <li>¿Cómo toman hoy los pedidos y llevan las mesas y la cuenta?</li>
           <li>¿Qué les quita más tiempo o les hace perder dinero?</li>
           <li>¿Cuánto pagan hoy por resolverlo, en dinero o en tiempo?</li>
         </ol>
         <p>Escucha. Anota sus palabras textuales apenas salgas.</p>
-        <h3>Si el dolor es cotizar</h3>
+        <h3>Si el dolor son las comandas o la cuenta</h3>
         <p>“Estoy armando algo chico para eso. ¿Le puedo enseñar un ejemplo en el cel la próxima semana, 5 minutos?”</p>
         <h3>Reglas</h3>
         <ul>
@@ -490,7 +490,7 @@ html.intro .dock { animation: i-dock 600ms var(--ease-out) 420ms both; }
       <div class="guion-c">
         <form class="nuevo" id="nuevo" autocomplete="off">
           <label class="etq" for="n-nombre">Negocio
-            <input class="in" id="n-nombre" required maxlength="80" placeholder="Refaccionaria San Juan">
+            <input class="in" id="n-nombre" required maxlength="80" placeholder="Taquería El Güero">
           </label>
           <div class="fila2">
             <label class="etq" for="n-colonia">Colonia
@@ -846,7 +846,7 @@ const ESTADOS = [
   { id: "interesa", nombre: "Le interesa" }, { id: "no", nombre: "No por ahora" }
 ];
 const PREGUNTAS = [
-  ["r1", "¿Cómo llevan hoy el inventario y las cotizaciones?"],
+  ["r1", "¿Cómo toman hoy los pedidos y llevan las mesas y la cuenta?"],
   ["r2", "¿Qué les quita más tiempo o les hace perder dinero?"],
   ["r3", "¿Cuánto pagan hoy por resolverlo, en dinero o en tiempo?"]
 ];
@@ -929,7 +929,7 @@ function campoTexto(p, clave, etiqueta, area) {
 
 const sumarDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
 const mensajeInicial = () => (new Date().getHours() < 12 ? "Buen día." : "Buenas tardes.") +
-  " Soy Eduardo, de CDMX. Estoy platicando con dueños de refaccionarias y ferreterías para entender cómo cotizan hoy las piezas. ¿Me regalaría 5 minutos por aquí o una llamada? No vengo a venderle nada.";
+  " Soy Eduardo, de CDMX. Estoy platicando con dueños de restaurantes y fondas para entender cómo llevan hoy las mesas, las comandas y la cuenta. ¿Me regalaría 5 minutos por aquí o una llamada? No vengo a venderle nada.";
 async function copiar(texto) {
   try { await navigator.clipboard.writeText(texto); return true; }
   catch {
@@ -1086,6 +1086,7 @@ const CABECERAS = {
   estado: ["estado", "status"], seguir: ["seguimiento", "fechadeseguimiento"], notas: ["otrasnotas", "notas", "nota", "comentarios"]
 };
 PREGUNTAS.forEach(([k, q]) => { CABECERAS[k] = [claveCol(q)]; });
+CABECERAS.r1.push(claveCol("¿Cómo llevan hoy el inventario y las cotizaciones?")); // copias anteriores
 const limpiaCsv = (s, max) => String(s || "").replace(/^'(?=[=+\-@])/, "").replace(/\s+/g, " ").trim().slice(0, max);
 
 function importarFilas(filas) {
@@ -1132,7 +1133,7 @@ $("archivo").addEventListener("change", async () => {
   aviso(r.nuevos ? "Importados " + r.nuevos + (r.repetidos ? " · " + r.repetidos + " repetidos omitidos" : "") : r.repetidos ? "Todos estaban repetidos" : "No encontré negocios con nombre");
 });
 $("plantilla").addEventListener("click", () => {
-  const csv = "\uFEFF" + "Negocio,Colonia,Teléfono\r\n" + '"Refaccionaria Ejemplo Uno","Doctores","55 0000 0001"\r\n' + '"Ferretería Ejemplo Dos","Centro","55 0000 0002"\r\n';
+  const csv = "\uFEFF" + "Negocio,Colonia,Teléfono\r\n" + '"Taquería Ejemplo Uno","Roma","55 0000 0001"\r\n' + '"Fonda Ejemplo Dos","Centro","55 0000 0002"\r\n';
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = el("a"); a.href = url; a.download = "plantilla-prospectos.csv";
   document.body.appendChild(a); a.click(); a.remove();
