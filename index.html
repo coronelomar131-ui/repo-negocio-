@@ -509,8 +509,12 @@ html.intro .dock { animation: i-dock 600ms var(--ease-out) 420ms both; }
     <ul id="lista-pro"></ul>
     <div class="herr">
       <button class="btn" id="exportar" type="button">Exportar a Excel</button>
+      <button class="btn" id="importar" type="button">Importar lista</button>
+      <button class="btn" id="plantilla" type="button">Bajar plantilla</button>
+      <input id="archivo" type="file" accept=".csv,.txt,text/csv,text/plain" hidden>
     </div>
     <p class="detalle" style="padding: 14px var(--m) 0">Los datos se guardan solo en este teléfono. Si borras los datos del navegador, se pierden: exporta de vez en cuando. Una conversación cuenta cuando anotas al menos una respuesta.</p>
+    <p class="detalle" style="padding: 8px var(--m) 0">Importar acepta un CSV con las columnas Negocio, Colonia y Teléfono (o el archivo que tú mismo exportaste, para recuperar una copia). Los negocios repetidos se omiten.</p>
   </section>
 </div>
 
@@ -1054,6 +1058,86 @@ $("exportar").addEventListener("click", () => {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   aviso("Archivo listo para Excel");
+});
+
+/* ── Importar lista (CSV) ───────────────────────── */
+function leerCsv(texto) {
+  const primera = texto.split(/\r?\n/, 1)[0] || "";
+  const cuenta = (c) => primera.split(c).length - 1;
+  const sep = cuenta(";") > cuenta(",") && cuenta(";") >= cuenta("\t") ? ";" : cuenta("\t") > cuenta(",") ? "\t" : ",";
+  const filas = []; let fila = [], cel = "", entre = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (entre) {
+      if (c === '"') { if (texto[i + 1] === '"') { cel += '"'; i++; } else entre = false; } else cel += c;
+    } else if (c === '"') entre = true;
+    else if (c === sep) { fila.push(cel); cel = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && texto[i + 1] === "\n") i++; fila.push(cel); cel = ""; filas.push(fila); fila = []; }
+    else cel += c;
+  }
+  if (cel !== "" || fila.length) { fila.push(cel); filas.push(fila); }
+  return filas.filter((f) => f.some((x) => x.trim() !== ""));
+}
+const claveCol = (s) => quitar(s).replace(/[^a-z0-9]/g, "");
+const CABECERAS = {
+  nombre: ["negocio", "nombre", "empresa", "razonsocial", "nombredelnegocio"],
+  colonia: ["colonia", "zona", "barrio"],
+  tel: ["telefono", "tel", "celular", "whatsapp", "movil", "numero"],
+  estado: ["estado", "status"], seguir: ["seguimiento", "fechadeseguimiento"], notas: ["otrasnotas", "notas", "nota", "comentarios"]
+};
+PREGUNTAS.forEach(([k, q]) => { CABECERAS[k] = [claveCol(q)]; });
+const limpiaCsv = (s, max) => String(s || "").replace(/^'(?=[=+\-@])/, "").replace(/\s+/g, " ").trim().slice(0, max);
+
+function importarFilas(filas) {
+  let mapa = {}, inicio = 0;
+  const cab = filas[0].map(claveCol);
+  const hay = (campo) => cab.findIndex((c) => CABECERAS[campo].includes(c));
+  if (hay("nombre") >= 0) { Object.keys(CABECERAS).forEach((k) => { const i = hay(k); if (i >= 0) mapa[k] = i; }); inicio = 1; }
+  else mapa = { nombre: 0, colonia: 1, tel: 2 };
+  const llave = (n, t) => quitar(n).replace(/[^a-z0-9]/g, "") + "|" + String(t || "").replace(/\D/g, "").slice(-10);
+  const existentes = new Set(prospectos.map((p) => llave(p.nombre, p.tel)));
+  let nuevos = 0, repetidos = 0, vacios = 0, id = Date.now();
+  const lista = [];
+  for (let i = inicio; i < filas.length && lista.length < 500; i++) {
+    const f = filas[i], v = (k, max) => (mapa[k] !== undefined ? limpiaCsv(f[mapa[k]], max) : "");
+    const nombre = v("nombre", 80);
+    if (!nombre) { vacios++; continue; }
+    const tel = v("tel", 20), k = llave(nombre, tel);
+    if (existentes.has(k)) { repetidos++; continue; }
+    existentes.add(k);
+    const est = ESTADOS.find((s) => quitar(s.nombre) === quitar(v("estado", 30)) || s.id === quitar(v("estado", 30)));
+    const seg = v("seguir", 10);
+    lista.push({ id: id++, nombre, colonia: v("colonia", 60), tel, estado: est ? est.id : "porvisitar",
+      seguir: /^\d{4}-\d{2}-\d{2}$/.test(seg) ? seg : "", r1: v("r1", 600), r2: v("r2", 600), r3: v("r3", 600), notas: v("notas", 600) });
+    nuevos++;
+  }
+  prospectos = lista.concat(prospectos);
+  guardar(); filtroPro = "todo"; dibujarChipsPro(); dibujarProspectos();
+  return { nuevos, repetidos, vacios };
+}
+$("importar").addEventListener("click", () => $("archivo").click());
+$("archivo").addEventListener("change", async () => {
+  const arch = $("archivo").files[0];
+  $("archivo").value = "";
+  if (!arch) return;
+  if (arch.size > 1024 * 1024) { aviso("El archivo pesa más de 1 MB"); return; }
+  let texto;
+  const bytes = await arch.arrayBuffer();
+  try { texto = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { texto = new TextDecoder("windows-1252").decode(bytes); }
+  texto = texto.replace(/^\uFEFF/, "");
+  const filas = leerCsv(texto);
+  if (!filas.length) { aviso("El archivo está vacío"); return; }
+  const r = importarFilas(filas);
+  aviso(r.nuevos ? "Importados " + r.nuevos + (r.repetidos ? " · " + r.repetidos + " repetidos omitidos" : "") : r.repetidos ? "Todos estaban repetidos" : "No encontré negocios con nombre");
+});
+$("plantilla").addEventListener("click", () => {
+  const csv = "\uFEFF" + "Negocio,Colonia,Teléfono\r\n" + '"Refaccionaria Ejemplo Uno","Doctores","55 0000 0001"\r\n' + '"Ferretería Ejemplo Dos","Centro","55 0000 0002"\r\n';
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = el("a"); a.href = url; a.download = "plantilla-prospectos.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  aviso("Plantilla lista: llénala y súbela con Importar");
 });
 
 $("marca").textContent = MARCA;
