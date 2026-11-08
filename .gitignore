@@ -46,3 +46,7 @@ prototypes/
 # Python bytecode from bundled skills
 __pycache__/
 *.pyc
+video-taller/frames-demo/
+video-taller/cuadros/
+video-taller/*.png
+prospectos/
