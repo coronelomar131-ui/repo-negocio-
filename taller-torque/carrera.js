@@ -13,6 +13,7 @@ function buildRace() {
   if (RACE.built || !R3.ok) return;
   const sc = new THREE.Scene();
   sc.background = new THREE.Color(0x9cc3e4);
+  sc.environment = R3.env;
   sc.fog = new THREE.Fog(0x9cc3e4, 7000, 32000);
   sc.add(new THREE.HemisphereLight(0xeaf3ff, 0x5b5040, 0.7));
   const sun = new THREE.DirectionalLight(0xfff1d6, 0.85); sun.position.set(-700, 1400, 500);
@@ -63,9 +64,9 @@ function buildRace() {
   RACE.cam = new THREE.PerspectiveCamera(50, 4 / 3, 10, 40000);
   RACE.built = true;
 }
-function raceCar(modelId) {
+function raceCar(modelId, look) {
   const g = new THREE.Group();
-  g.add(buildBody(modelId, false));
+  g.add(buildBody(modelId, false, look));
   const fl = wheel3D(g, -22, -164, 171, true), fr = wheel3D(g, 342, -164, 171, true);
   const wheels = g.children[0].children.filter(o => o.isGroup && o.children.length >= 4).concat([fl, fr]);
   g.userData.wheels = wheels;
@@ -74,7 +75,7 @@ function raceCar(modelId) {
 function setupRaceCars() {
   if (RACE.player) RACE.scene.remove(RACE.player);
   if (RACE.rivalG) RACE.scene.remove(RACE.rivalG);
-  RACE.player = raceCar(G.car.model);
+  RACE.player = raceCar(G.car.model, { color: G.car.color, rust: G.car.rust });
   RACE.player.position.set(-560, 0, 0);
   RACE.scene.add(RACE.player);
   if (RACE.rival >= 0) {

@@ -29,6 +29,7 @@ function buildMundo() {
   if (MUNDO.built || !R3.ok) return;
   const sc = new THREE.Scene();
   sc.background = new THREE.Color(0x9cc3e4);
+  sc.environment = R3.env;
   sc.fog = new THREE.Fog(0x9cc3e4, 9000, 26000);
   sc.add(new THREE.HemisphereLight(0xeaf3ff, 0x5b5040, 0.7));
   const sun = new THREE.DirectionalLight(0xfff1d6, 0.85); sun.position.set(-1200, 2400, 900);
@@ -154,7 +155,7 @@ function putOnLift(c) {
 }
 function worldCarGroup(c) {
   const pivot = new THREE.Group();
-  const body = raceCar(c.model);
+  const body = raceCar(c.model, { color: c.color, rust: c.rust });
   body.position.set(-160, 0, 230);
   pivot.add(body);
   pivot.userData.wheels = body.userData.wheels;
@@ -163,7 +164,7 @@ function worldCarGroup(c) {
   return pivot;
 }
 function syncWorldCars() {
-  const key = G.cars.map(c => c.uid + c.model + (c.engId || '')).join('|') + '#' + G.market.cars.map(L => L.car.uid).join(',');
+  const key = G.cars.map(c => c.uid + c.model + (c.engId || '') + (c.color || '') + (c.rust || 0).toFixed(1)).join('|') + '#' + G.market.cars.map(L => L.car.uid).join(',');
   if (key === MUNDO.carKey) return;
   MUNDO.carKey = key;
   for (const k in MUNDO.carGroups) MUNDO.scene.remove(MUNDO.carGroups[k]);

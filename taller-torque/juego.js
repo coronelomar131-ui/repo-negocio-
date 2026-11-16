@@ -841,6 +841,7 @@ function onAction(act, el) {
     case 'reflash': reflash(); return;
     case 'work': { const c = G.cars.find(x => x.uid === uid); if (!c) return; if (G.car && G.car.sim.om > 1) { toast('Apaga el motor del auto actual.', 'warn'); return; } setCar(c); putOnLift(c); G.view = 'cofre'; syncViews(); refreshAll(); return; }
     case 'sell': sellCar(uid); return;
+    case 'paint': paintCar(uid, el.dataset.col); return;
     case 'sellmotor': sellPart('motor', uid); return;
     case 'sellcaja': sellPart('caja', uid); return;
     case 'buyauto': buyListing('auto', +el.dataset.i); return;
@@ -989,6 +990,7 @@ function warnings() {
   const s = G.car.sim, c = G.car;
   if (s.running && s.oilP < 0.4 && s.om > 60) caption('oilp' + Math.floor(G.t / 6), '¡Sin presión de aceite! Apágalo ya.', true);
   if (s.ECT > 112) caption('hot' + Math.floor(G.t / 8), `¡Se está calentando: ${Math.round(s.ECT)} °C! Apágalo.`, true);
+  if (G.view === 'pista' || G.view === 'mundo') return;
   if (s.running && (s.Pc - PH.Pa) > 30e3) caption('boost', 'Los gases de escape empujan la turbina; la turbina gira el compresor y mete aire a presión.');
   if (s.running && s.wg > 0.2) caption('wg', 'La wastegate abrió: desvía escape para que el turbo no se pase de presión.');
   if (s.time - s.bovT < 0.1 && s.bovT > 0) caption('bov', '¡Psshh! La válvula de alivio sacó el aire a presión al soltar el acelerador.');

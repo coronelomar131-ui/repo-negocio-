@@ -1,8 +1,8 @@
 'use strict';
 /* =====================================================================
    TALLER TORQUE · 3D
-   Three.js con sombreado de caricatura (3 tonos), contorno negro y
-   resolución baja escalada sin suavizado: pixel art en 3D.
+   Three.js con materiales físicos (pintura con barniz, metal que refleja),
+   mapa de reflejos de estudio, sombras suaves y resolución completa.
    Unidades: 1 = 1 pixel del plano 2D original (≈ 4.7 mm).
    x: izquierda→derecha · z: parabrisas (0) → defensa (240) · y: arriba.
    ===================================================================== */
@@ -22,13 +22,25 @@ const GRAD = (() => {
   return t;
 })();
 const MATS = {};
+const METALS = new Set(['#a3abb6', '#d3d8de', '#b8bec7', '#8b929c', '#6a727e', '#7d8591', '#5b6473', '#d3d8de', '#e6e9ed', '#c47a3d']);
+const RUBBER = new Set(['#1a1b1f', '#121318', '#1d1e22', '#26282d', '#0d0e11', '#2a2d33', '#16171b', '#26272c']);
+const PAINTS = new Set();
 function M3(col, opt) {
   const k = col + (opt ? JSON.stringify(opt) : '');
-  if (!MATS[k]) MATS[k] = new THREE.MeshToonMaterial(Object.assign({ color: col, gradientMap: GRAD }, opt || {}));
-  return MATS[k];
+  if (MATS[k]) return MATS[k];
+  const c = new THREE.Color(col).convertSRGBToLinear();
+  let m;
+  const lc = col.toLowerCase();
+  if (opt && opt.transparent) m = new THREE.MeshPhysicalMaterial({ color: c, metalness: 0.1, roughness: 0.06, transparent: true, opacity: Math.max(0.55, opt.opacity || 0.5), envMapIntensity: 1.6 });
+  else if (opt && opt.paint || PAINTS.has(lc)) m = new THREE.MeshPhysicalMaterial({ color: c, metalness: 0.35, roughness: opt && opt.rough !== undefined ? opt.rough : 0.32, clearcoat: opt && opt.rough > 0.6 ? 0 : 1, clearcoatRoughness: 0.12, envMapIntensity: 1.1 });
+  else if (METALS.has(lc)) m = new THREE.MeshStandardMaterial({ color: c, metalness: 0.75, roughness: 0.3, envMapIntensity: 1.2 });
+  else if (RUBBER.has(lc)) m = new THREE.MeshStandardMaterial({ color: c, metalness: 0, roughness: 0.85 });
+  else m = new THREE.MeshStandardMaterial({ color: c, metalness: 0.08, roughness: 0.62 });
+  return (MATS[k] = m);
 }
 let OUT, OUT_SEL;
 function outline(mesh, sx, sy, sz) {
+  if (!R3.outlines) return null;
   const o = new THREE.Mesh(mesh.geometry, OUT);
   o.scale.set(sx, sy, sz); o.userData.outline = true; o.raycast = () => {};
   mesh.add(o); return o;
@@ -123,13 +135,13 @@ class Batch {
     const made = [];
     for (const col in this.cols) {
       const glass = col.startsWith('G:');
-      const mat = glass ? M3(col.slice(2), { transparent: true, opacity: 0.42 }) : col.startsWith('E:') ? new THREE.MeshBasicMaterial({ color: col.slice(2) }) : M3(col);
+      const mat = glass ? M3(col.slice(2), { transparent: true, opacity: 0.42 }) : col.startsWith('E:') ? new THREE.MeshBasicMaterial({ color: new THREE.Color(col.slice(2)).convertSRGBToLinear() }) : col.startsWith('P:') ? M3(col.slice(2).split('|')[0], { paint: true, rough: +(col.split('|')[1] || 0.32) }) : M3(col);
       const m = new THREE.Mesh(mergeGeos(this.cols[col]), mat);
       m.castShadow = !glass; m.receiveShadow = !glass;
       if (slot !== undefined) m.userData.slot = slot;
       par.add(m); made.push(m);
     }
-    if (this.outs.length) {
+    if (this.outs.length && R3.outlines) {
       const o = new THREE.Mesh(mergeGeos(this.outs), OUT); o.userData.outline = true; o.raycast = () => {};
       par.add(o);
     }
@@ -169,23 +181,30 @@ function init3D(canvas) {
   if (typeof THREE === 'undefined') return false;
   try {
     R3.canvas = canvas;
-    R3.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'low-power' });
+    R3.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
   } catch (e) { return false; }
   R3.renderer.setPixelRatio(1);
-  R3.renderer.setClearColor(0x16181d);
+  R3.renderer.setClearColor(0x1b1e24);
   R3.renderer.shadowMap.enabled = true;
-  R3.renderer.shadowMap.type = THREE.PCFShadowMap;
+  R3.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  R3.renderer.outputEncoding = THREE.sRGBEncoding;
+  R3.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  R3.renderer.toneMappingExposure = 1.05;
+  R3.renderer.physicallyCorrectLights = false;
+  R3.env = studioEnv(R3.renderer);
   OUT = new THREE.MeshBasicMaterial({ color: 0x0b0c10, side: THREE.BackSide });
   OUT_SEL = new THREE.MeshBasicMaterial({ color: 0xf0b429, side: THREE.BackSide });
   const sc = new THREE.Scene();
-  sc.fog = new THREE.Fog(0x16181d, 1400, 2600);
-  sc.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3226, 0.55));
-  const sun = new THREE.DirectionalLight(0xfff4e2, 0.75); sun.position.set(420, 980, 620);
-  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0006;
+  sc.environment = R3.env;
+  sc.background = new THREE.Color(0x2a2e36);
+  sc.fog = new THREE.Fog(0x2a2e36, 1800, 3400);
+  sc.add(new THREE.HemisphereLight(0xe6eeff, 0x4a4036, 0.5));
+  const sun = new THREE.DirectionalLight(0xfff4e2, 1.1); sun.position.set(420, 980, 620);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.radius = 4;
   Object.assign(sun.shadow.camera, { left: -900, right: 900, top: 900, bottom: -900, near: 200, far: 3200 });
   sun.target.position.set(160, -120, -120); sc.add(sun.target); sc.add(sun);
-  const fill = new THREE.DirectionalLight(0xffd9a8, 0.22); fill.position.set(-400, -200, 300); sc.add(fill);
-  const lamp = new THREE.PointLight(0xfff1d0, 0.45, 900, 1.6); lamp.position.set(160, 320, 120); sc.add(lamp);
+  const fill = new THREE.DirectionalLight(0xd8e4ff, 0.35); fill.position.set(-500, 300, 500); sc.add(fill);
+  const lamp = new THREE.PointLight(0xfff1d0, 0.5, 1100, 1.4); lamp.position.set(160, 340, 160); sc.add(lamp);
   R3.scene = sc;
   R3.cam = new THREE.PerspectiveCamera(40, 4 / 3, 5, 5000);
   buildShop(sc);
@@ -195,6 +214,20 @@ function init3D(canvas) {
   return true;
 }
 
+/* mapa de reflejos de estudio: paredes grises con barras de luz */
+function studioEnv(renderer) {
+  const es = new THREE.Scene();
+  es.add(new THREE.Mesh(new THREE.BoxGeometry(100, 60, 100), new THREE.MeshBasicMaterial({ color: 0x3c424c, side: THREE.BackSide })));
+  const L = c => new THREE.MeshBasicMaterial({ color: c });
+  for (const [x, z, w, d] of [[0, 0, 70, 6], [-28, 18, 6, 50], [28, -18, 6, 50]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 1, d), L(0xffffff)); m.position.set(x, 29, z); es.add(m); }
+  const side = new THREE.Mesh(new THREE.BoxGeometry(1, 20, 70), L(0xbfd4ff)); side.position.set(49, 5, 0); es.add(side);
+  const warm = new THREE.Mesh(new THREE.BoxGeometry(1, 16, 50), L(0xffd6a0)); warm.position.set(-49, 0, 10); es.add(warm);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(100, 1, 100), L(0x22252b)); floor.position.y = -29.5; es.add(floor);
+  const pm = new THREE.PMREMGenerator(renderer);
+  const tex = pm.fromScene(es, 0.03).texture;
+  pm.dispose();
+  return tex;
+}
 function buildShop(sc) {
   const g = new THREE.Group();
   const B = new Batch();
@@ -269,119 +302,158 @@ function buildShop(sc) {
   R3.shop = g;
 }
 
-/* ---------- carrocería con arcos, faros, espejos y suspensión ---------- */
+/* ---------- carrocería: silueta lateral extruida con bordes redondeados ---------- */
 function shade(hex, f) {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.min(255, Math.round(((n >> 16) & 255) * f)), gg = Math.min(255, Math.round(((n >> 8) & 255) * f)), b = Math.min(255, Math.round((n & 255) * f));
   return '#' + ((1 << 24) | (r << 16) | (gg << 8) | b).toString(16).slice(1);
 }
-function buildBody(modelId, openBay) {
-  const Md = MODELOS[modelId];
-  const col = Md.color, dk = shade(col, 0.72), lt = shade(col, 1.18), blk = '#1a1b1f', chrome = '#d3d8de';
-  const g = new THREE.Group();
-  const B = new Batch();
-  const shape = Md.shape;
+function mixHex(a, b, t) {
+  const A = new THREE.Color(a), Bc = new THREE.Color(b);
+  return '#' + A.lerp(Bc, Math.max(0, Math.min(1, t))).getHexString();
+}
+// perfiles (z, y): z hacia el frente, y hacia arriba
+function bodyDims(shape) {
   const len = shape === 'pickup' ? 1020 : shape === 'hatch' ? 820 : 960;
   const rear = 250 - len;
-  const sill = -150, belt = 40, fw = 171, rw = rear + 150, ar = 84;
-  // costados con arcos de llanta
-  for (const [x0, w] of [[-42, 14], [348, 14]]) {
-    B.box(x0, sill, rear, w, belt - sill, rw - ar - rear, col);
-    B.box(x0, sill, rw + ar, w, belt - sill, fw - ar - rw - ar, col);
-    B.box(x0, sill, fw + ar, w, belt - sill, 250 - fw - ar, col);
-    B.box(x0, -164 + ar - 6, rw - ar, w, belt - (-164 + ar - 6), ar * 2, col);
-    B.box(x0, -164 + ar - 6, fw - ar, w, belt - (-164 + ar - 6), ar * 2, col);
-    B.box(x0 + (x0 < 0 ? -3 : w), -164 + ar - 10, rw - ar - 6, 3, 8, ar * 2 + 12, blk, { ol: false });
-    B.box(x0 + (x0 < 0 ? -3 : w), -164 + ar - 10, fw - ar - 6, 3, 8, ar * 2 + 12, blk, { ol: false });
-    // líneas de puertas, manijas y estribo
-    const side = x0 < 0 ? x0 - 1 : x0 + w;
-    B.box(side, sill + 6, -60, 1.5, belt - sill - 10, 3, '#121318', { ol: false });
-    B.box(side, sill + 6, -330, 1.5, belt - sill - 10, 3, '#121318', { ol: false });
-    B.box(side + (x0 < 0 ? -2 : 0), 6, -140, 3, 6, 26, chrome, { ol: false });
-    B.box(x0 + (x0 < 0 ? -2 : 0), sill - 2, rw + ar, w + 2, 10, fw - ar - rw - ar, dk);
+  const roofH = shape === 'muscle' || shape === 'coupe' ? 150 : 172;
+  const cabR = shape === 'pickup' ? -330 : shape === 'hatch' ? -470 : shape === 'coupe' ? -430 : -450;
+  return { len, rear, roofH, cabR, rw: rear + 150, fw: 171, belt: 40 };
+}
+function extrude(pts, depth, bevel, x0) {
+  const sh = new THREE.Shape();
+  pts.forEach(([z, y], i) => (i ? sh.lineTo(-z, y) : sh.moveTo(-z, y)));
+  const geo = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 10 });
+  geo.rotateY(Math.PI / 2);
+  geo.translate(x0, 0, 0);
+  geo.computeVertexNormals();
+  return geo;
+}
+function arch(zc, yc, r, from, to, n) {
+  const out = [];
+  for (let i = 0; i <= n; i++) { const a = from + (to - from) * i / n; out.push([zc + Math.cos(a) * r, yc + Math.sin(a) * r]); }
+  return out;
+}
+function lowerProfile(D, shape, openBay) {
+  const { rear, rw, fw, belt } = D;
+  const sill = -148, ar = 88, yc = -164;
+  const front = openBay
+    ? [[262, -102], [258, -44], [248, -40], [242, -60], [-30, -60], [-40, belt + 4]]
+    : [[262, -102], [258, -44], [246, belt - 12], [150, belt - 2], [0, belt + 2], [-40, belt + 4]];
+  const tailTop = shape === 'pickup' ? belt + 6 : shape === 'hatch' ? belt + 20 : belt + 12;
+  const pts = [[262, -150], ...front];
+  pts.push([D.cabR, belt + 6], [rear + 40, tailTop], [rear + 6, tailTop - 14], [rear, -60], [rear + 4, -150]);
+  // bajo con arcos de rueda (de atrás hacia adelante)
+  const yA = sill;
+  const dz = Math.sqrt(ar * ar - (yA - yc) * (yA - yc));
+  const k = Math.asin((yA - yc) / ar);
+  pts.push([rw - dz, yA]);
+  arch(rw, yc, ar, Math.PI - k, k, 14).forEach(p => pts.push(p));
+  pts.push([fw - dz, yA]);
+  arch(fw, yc, ar, Math.PI - k, k, 14).forEach(p => pts.push(p));
+  pts.push([262, -150]);
+  return pts;
+}
+function cabinProfile(D, shape) {
+  const { belt, roofH, cabR } = D;
+  const ws = shape === 'muscle' ? 170 : 150;
+  if (shape === 'hatch') return [[-36, belt + 2], [-36 - ws, roofH], [cabR + 30, roofH - 2], [cabR - 4, belt + 22], [cabR, belt + 2]];
+  if (shape === 'coupe' || shape === 'muscle') return [[-36, belt + 2], [-36 - ws, roofH], [cabR + 140, roofH - 4], [cabR - 30, belt + 10], [cabR - 20, belt + 2]];
+  if (shape === 'pickup') return [[-36, belt + 2], [-36 - ws, roofH], [cabR + 10, roofH], [cabR + 4, belt + 2]];
+  return [[-36, belt + 2], [-36 - ws, roofH], [cabR + 80, roofH], [cabR - 26, belt + 14], [cabR - 40, belt + 2]];
+}
+function buildBody(modelId, openBay, look) {
+  const Md = MODELOS[modelId];
+  look = look || {};
+  const rust = look.rust || 0;
+  const base = look.color || Md.color;
+  const col = rust > 0.05 ? mixHex(base, '#7a4426', rust * 0.75) : base;
+  const paint = 'P:' + col + '|' + (0.3 + rust * 0.6).toFixed(2);
+  const trim = '#16171b', chrome = '#d3d8de';
+  const g = new THREE.Group();
+  const shape = Md.shape;
+  const D = bodyDims(shape);
+  const add = (geo, matKey) => {
+    const m = new THREE.Mesh(geo, matKey.startsWith('P:') ? M3(matKey.slice(2).split('|')[0], { paint: true, rough: +(matKey.split('|')[1]) }) : matKey.startsWith('G:') ? M3(matKey.slice(2), { transparent: true, opacity: 0.8 }) : M3(matKey));
+    m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+  };
+  // carrocería baja (de lado a lado)
+  add(extrude(lowerProfile(D, shape, openBay), 380, 12, -32), paint);
+  if (openBay) {
+    // salpicaderas a los lados del cofre abierto
+    const fender = [[262, -150], [262, -102], [258, -44], [246, D.belt - 12], [150, D.belt - 2], [0, D.belt + 2], [-40, D.belt + 4], [-40, -60], [100, -60], [262, -60]];
+    add(extrude(fender, 40, 8, -40), paint);
+    add(extrude(fender, 40, 8, 320), paint);
   }
-  // piso, tanque, eje trasero, escape
-  B.box(-30, sill, rear + 40, 380, 20, -80 - rear, '#2a2d33');
-  B.box(40, sill - 40, rear + 60, 240, 40, 110, '#26282d');
-  if (Md.drive === 'RWD') { B.cyl(9, 384, '#3b414c', 160, -164, rw, 'x'); B.cyl(34, 40, '#3b414c', 160, -164, rw, 'z'); B.tube([[160, -150, rw + 30], [160, -140, -40], [100, -100, 60]], 8, '#3b414c'); }
-  else { B.cyl(10, 380, '#3b414c', 160, -150, rw + 10, 'x'); }
-  for (const x of [-10, 330]) { B.cyl(14, 70, '#d8443a', x, -120, rw, 'y', { seg: 8 }); }
-  B.tube([[250, -128, -40], [250, -130, rear + 40], [250, -126, rear - 12]], 6, '#6a727e');
-  B.cyl(8, 26, chrome, 250, -126, rear - 18, 'z');
-  // frente: defensa, parrilla, faros, placa
-  B.box(-42, -150, 236, 404, 116, 22, col);
-  B.box(-46, -160, 248, 412, 34, 16, blk);
-  B.box(30, -112, 255, 260, 54, 6, '#16171b');
-  for (let y = -104; y < -64; y += 9) B.box(36, y, 259, 248, 3, 3, '#3a3d44', { ol: false });
-  B.box(150, -88, 262, 20, 10, 3, chrome, { ol: false });
-  for (const x of [-34, 296]) { B.box(x, -78, 254, 66, 30, 8, '#dfe6ef'); B.box(x + 6, -72, 260, 54, 18, 3, 'E:#fff6cf', { ol: false }); B.box(x + (x < 0 ? 0 : 50), -96, 256, 16, 10, 5, '#f0a02a', { ol: false }); }
-  B.box(115, -140, 263, 90, 26, 3, '#e6e9ed'); B.box(125, -132, 265, 70, 8, 2, '#2e5f9e', { ol: false });
-  // torreta, parabrisas, techo, pilares, espejos
-  B.box(-42, -10, -40, 404, 52, 40, blk);
-  for (let x = 0; x < 320; x += 20) B.box(x, 42, -36, 12, 2, 30, '#2c2e34', { ol: false });
-  const roofH = shape === 'muscle' || shape === 'coupe' ? 150 : 175;
-  const cabF = -60, cabR = shape === 'pickup' ? -330 : shape === 'hatch' ? -470 : shape === 'coupe' ? -400 : -440;
-  const wsA = Math.atan2(150, roofH - belt), wsL = Math.hypot(roofH - belt, 150);
-  B.boxc(160, (belt + roofH) / 2, cabF - 75, 380, wsL, 4, 'G:#9fc4dd', { ol: false, rx: -wsA });
-  const rz0 = cabR + 40, rz1 = cabF - 150;
-  B.boxc(160, roofH + 1, (rz0 + rz1) / 2, 392, 10, Math.max(20, rz1 - rz0), col);
-  B.boxc(160, roofH + 7, (rz0 + rz1) / 2, 360, 2, Math.max(10, rz1 - rz0 - 20), lt, { ol: false });
-  for (const x of [-38, 352]) {
-    B.tube([[x, belt, cabF - 2], [x, roofH, cabF - 150]], 5, dk);
-    B.tube([[x, belt, cabR], [x, roofH, cabR + 40]], 6, dk);
-    B.boxc(x + (x < 0 ? -2 : 2), (belt + roofH) / 2, (cabF - 150 + cabR + 40) / 2, 3, roofH - belt - 12, Math.abs(cabR - cabF) - 110, 'G:#9fc4dd', { ol: false });
-    B.box(x + (x < 0 ? -36 : 6), belt + 10, cabF - 30, 30, 20, 14, dk);
-    B.box(x + (x < 0 ? -34 : 8), belt + 13, cabF - 33, 26, 14, 3, '#9fc4dd', { ol: false });
+  // cabina de vidrio polarizado, más angosta
+  const cab = cabinProfile(D, shape);
+  add(extrude(cab, 340, 10, -12), 'G:#1e2a36');
+  // techo y pilares del color de la carrocería
+  const roofPts = [cab[1], cab[2]];
+  const rz0 = Math.min(roofPts[0][0], roofPts[1][0]), rz1 = Math.max(roofPts[0][0], roofPts[1][0]);
+  const B = new Batch();
+  B.box(-14, D.roofH - 2, rz0 + 4, 364, 10, rz1 - rz0 - 8, paint, { ol: false });
+  for (const x of [-16, 336]) {
+    B.tube([[x + 6, D.belt + 4, cab[0][0]], [x + 6, D.roofH + 2, cab[1][0]]], 8, paint, { ol: false });
+    B.tube([[x + 6, D.belt + 4, cab[cab.length - 1][0]], [x + 6, D.roofH + 2, cab[2][0]]], 10, paint, { ol: false });
+    B.box(x, D.belt, -235, 18, D.roofH - D.belt, 14, paint, { ol: false });
+    B.box(x + (x < 0 ? -26 : 14), D.belt + 8, -70, 24, 18, 26, paint, { ol: false });
+    B.box(x + (x < 0 ? -24 : 16), D.belt + 10, -73, 20, 14, 3, chrome, { ol: false });
   }
-  // asientos y volante (se ven por los vidrios)
-  for (const x of [40, 210]) { B.box(x, -60, -330, 90, 60, 90, '#26282d'); B.box(x, 0, -340, 90, 120, 20, '#26282d'); }
-  B.cyl(36, 6, '#121318', 85, 60, -200, 'z', { rx: 0.4 });
-  // atrás
-  if (shape === 'pickup') {
-    B.box(-42, sill, rear, 404, 150, 14, col);
-    B.box(-36, -30, rear + 14, 392, 10, cabR - rear - 30, '#3a3d45');
-    B.box(-36, belt - 30, cabR - 4, 392, roofH - belt + 20, 10, col);
-    B.boxc(160, (belt + roofH) / 2 + 20, cabR - 8, 300, 70, 3, 'G:#9fc4dd', { ol: false });
-  } else {
-    const trunkH = shape === 'hatch' ? roofH - 20 : belt + 20;
-    B.box(-42, belt - 10, rear, 404, trunkH - belt + 10, Math.max(20, cabR - rear), col);
-    const rgA = Math.atan2(roofH - trunkH, 120), rgL = Math.hypot(roofH - trunkH, 120);
-    if (shape !== 'hatch') B.boxc(160, (trunkH + roofH) / 2, cabR + 20, 360, rgL, 3, 'G:#9fc4dd', { ol: false, rx: rgA });
-    B.box(-46, sill, rear - 10, 412, 70, 16, blk);
-    for (const x of [-30, 290]) { B.box(x, belt - 34, rear - 12, 70, 26, 4, '#b8322a'); B.box(x + 8, belt - 28, rear - 14, 54, 12, 3, 'E:#ff5a4a', { ol: false }); }
-    B.box(115, -110, rear - 14, 90, 26, 3, '#e6e9ed');
+  // líneas de puertas y manijas
+  for (const x of [-45, 361]) {
+    for (const z of [-60, -235, -400]) if (z > D.cabR - 20) B.box(x, -130, z, 2, 160, 2.5, trim, { ol: false });
+    B.box(x + (x < 0 ? -2 : 0), 8, -120, 3, 7, 26, chrome, { ol: false });
+    B.box(x + (x < 0 ? -2 : 0), 8, -300, 3, 7, 26, chrome, { ol: false });
+    B.box(x + (x < 0 ? -3 : 0), -150, D.rw + 90, 4, 16, D.fw - D.rw - 180, trim, { ol: false });
   }
-  if (shape === 'muscle') { B.box(110, belt + 4, rear + 6, 100, 8, 30, blk); B.box(-40, -60, 0, 2, 10, 200, '#e6e9ed', { ol: false }); }
-  // cofre abierto o cerrado
+  // frente: faros, parrilla, defensa, placa
+  B.box(20, -108, 262, 280, 48, 8, trim, { ol: false });
+  for (let y = -100; y < -66; y += 8) B.box(26, y, 268, 268, 3, 3, '#3a3d44', { ol: false });
+  for (const x of [-28, 288]) { B.box(x, -78, 258, 60, 28, 10, '#dfe6ef', { ol: false }); B.box(x + 6, -73, 266, 48, 18, 3, 'E:#fff6d8', { ol: false }); B.box(x + (x < 0 ? -2 : 54), -96, 260, 12, 10, 6, '#f0a02a', { ol: false }); }
+  B.box(-44, -162, 252, 408, 30, 18, trim, { ol: false });
+  B.box(115, -142, 268, 90, 24, 3, '#e6e9ed', { ol: false }); B.box(125, -134, 270, 70, 8, 2, '#2e5f9e', { ol: false });
+  // atrás: calaveras, defensa, placa, escape
+  const tailY = shape === 'pickup' ? D.belt - 30 : D.belt - 36;
+  for (const x of [-30, 290]) { B.box(x, tailY, D.rear - 4, 70, 26, 8, '#9e2a22', { ol: false }); B.box(x + 6, tailY + 6, D.rear - 7, 58, 14, 3, 'E:#ff5a4a', { ol: false }); }
+  B.box(-44, -162, D.rear - 8, 408, 34, 18, trim, { ol: false });
+  B.box(115, -110, D.rear - 6, 90, 24, 3, '#e6e9ed', { ol: false });
+  B.cyl(8, 30, chrome, 250, -132, D.rear - 16, 'z', { ol: false, seg: 16 });
+  if (shape === 'pickup') { B.box(-20, D.belt - 70, D.rear + 14, 360, 70, D.cabR - D.rear - 28, '#2a2d33', { ol: false }); }
+  if (shape === 'muscle') { B.box(110, D.belt + 14, -30 + (openBay ? 400 : 0), 100, 12, 150, shade(col, 0.6), { ol: false }); }
+  // interior: asientos y volante
+  for (const x of [40, 210]) { B.box(x, -60, -330, 90, 70, 90, '#26282d', { ol: false }); B.box(x, 10, -345, 90, 110, 20, '#26282d', { ol: false }); }
+  B.cyl(34, 6, trim, 85, 72, -190, 'z', { ol: false, seg: 18, rx: 0.4 });
+  // piso, tanque, eje y escape
+  B.box(-30, -150, D.rear + 40, 380, 16, -80 - D.rear, '#2a2d33', { ol: false });
+  B.box(40, -188, D.rear + 60, 240, 36, 110, '#26282d', { ol: false });
+  if (Md.drive === 'RWD') { B.cyl(9, 380, '#3b414c', 160, -164, D.rw, 'x', { ol: false }); B.cyl(30, 40, '#3b414c', 160, -164, D.rw, 'z', { ol: false, seg: 16 }); B.tube([[160, -150, D.rw + 30], [160, -140, -40], [100, -100, 60]], 7, '#3b414c', { ol: false }); }
+  else B.cyl(10, 380, '#3b414c', 160, -152, D.rw + 10, 'x', { ol: false });
+  B.tube([[250, -128, -40], [250, -130, D.rear + 40], [250, -132, D.rear - 6]], 6, '#6a727e', { ol: false });
+  B.build(g);
+  // cofre abierto
   if (openBay) {
     const hood = new THREE.Group();
-    const H = new Batch();
-    H.box(-40, 0, -6, 400, 240, 8, col);
-    H.box(-30, 12, 3, 380, 214, 3, dk);
-    for (let x = 0; x < 340; x += 60) H.box(x, 20, 6, 8, 200, 4, shade(col, 0.6), { ol: false });
-    H.build(hood);
-    hood.position.set(0, belt, -40); hood.rotation.x = -0.32;
+    const hm = new THREE.Mesh(extrude([[0, 0], [0, 8], [235, 8], [240, 0]], 380, 4, -30), M3(col, { paint: true, rough: 0.3 + rust * 0.6 }));
+    hm.castShadow = true; hood.add(hm);
+    hood.position.set(0, D.belt, -36); hood.rotation.x = -1.22;
     g.add(hood);
-    B.tube([[20, belt, -30], [20, belt + 200, -100]], 2, '#a3abb6');
-  } else {
-    B.box(-36, belt - 4, -40, 392, 8, 290, col);
-    B.box(-36, belt + 4, 200, 392, 2, 46, dk, { ol: false });
-    if (shape === 'muscle' || Md.drive === 'RWD') B.box(110, belt + 4, 40, 100, 10, 130, dk);
+    const Bh = new Batch(); Bh.tube([[20, D.belt, -30], [20, D.belt + 210, -90]], 2, '#a3abb6', { ol: false }); Bh.build(g);
   }
-  B.build(g);
-  for (const x of [-22, 342]) wheel3D(g, x, -164, rw, false);
+  for (const x of [-22, 342]) wheel3D(g, x, -164, D.rw, false);
   return g;
 }
 function wheel3D(par, x, y, z, front) {
   const w = new THREE.Group();
+  const tire = new THREE.Mesh(new THREE.TorusGeometry(50, 17, 14, 32), M3('#1a1b1f'));
+  tire.rotation.y = Math.PI / 2; tire.scale.set(1, 1, 1.15); tire.castShadow = true; w.add(tire);
   const B = new Batch();
-  B.cyl(66, 40, '#1a1b1f', 0, 0, 0, 'x', { seg: 22 });
-  B.cyl(66.5, 30, '#26272c', 0, 0, 0, 'x', { seg: 22, ol: false });
-  B.cyl(44, 42, '#a3abb6', 0, 0, 0, 'x', { seg: 14 });
-  B.cyl(38, 43, '#6a727e', 0, 0, 0, 'x', { seg: 14, ol: false });
-  B.cyl(14, 46, '#d3d8de', 0, 0, 0, 'x', { seg: 8 });
-  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; B.boxc(0, Math.sin(a) * 25, Math.cos(a) * 25, 44, 7, 22, '#d3d8de', { rx: -a }); }
-  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5 + 0.6; B.cyl(2.5, 47, '#8b929c', 0, Math.sin(a) * 18, Math.cos(a) * 18, 'x', { ol: false, seg: 6 }); }
+  B.cyl(44, 30, '#2a2b30', 0, 0, 0, 'x', { ol: false, seg: 32 });
+  B.cyl(40, 34, '#b8bec7', 0, 0, 0, 'x', { ol: false, seg: 32 });
+  B.cyl(34, 35, '#5b6473', 0, 0, 0, 'x', { ol: false, seg: 24 });
+  B.cyl(11, 40, '#d3d8de', 0, 0, 0, 'x', { ol: false, seg: 16 });
+  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; B.boxc(0, Math.sin(a) * 22, Math.cos(a) * 22, 37, 8, 22, '#d3d8de', { ol: false, rx: -a }); }
+  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5 + 0.63; B.cyl(2.5, 41, '#8b929c', 0, Math.sin(a) * 15, Math.cos(a) * 15, 'x', { ol: false, seg: 6 }); }
   B.build(w);
   w.position.set(x, y, z);
   par.add(w);
@@ -609,11 +681,11 @@ function partKey(c, id) {
 }
 function sync3D(c) {
   if (!R3.ok) return;
-  const bodyKey = c.uid + '|' + c.model + '|' + (c.engId || '-') + '|' + (c.caja ? c.caja.uid + (c.caja.health > 0 ? 'ok' : 'x') : '-');
+  const bodyKey = c.uid + '|' + c.model + '|' + (c.color || '') + (c.rust || 0).toFixed(2) + '|' + (c.engId || '-') + '|' + (c.caja ? c.caja.uid + (c.caja.health > 0 ? 'ok' : 'x') : '-');
   if (bodyKey !== R3.bodyKey) {
     R3.bodyKey = bodyKey;
     R3.carGroup.clear(); R3.slotGroups = {}; R3.keys = {}; R3.dyn = {};
-    R3.carGroup.add(buildBody(c.model, true));
+    R3.carGroup.add(buildBody(c.model, true, { color: c.color, rust: c.rust }));
     R3.carGroup.add(chassisFixed(c));
     R3.engGroup = new THREE.Group(); R3.carGroup.add(R3.engGroup);
     if (c.engId) R3.engGroup.add(engineCore(c));
@@ -643,13 +715,18 @@ function sync3D(c) {
   R3.pan.position.z = 0;
 }
 
-/* ---------- selección ---------- */
+/* ---------- selección: la pieza brilla en amarillo ---------- */
+function glowGroup(g, on) {
+  g.traverse(o => {
+    if (!o.isMesh || o.userData.outline || !o.material || !o.material.isMeshStandardMaterial) return;
+    if (on) { if (!o.userData.mat0) { o.userData.mat0 = o.material; o.material = o.material.clone(); o.material.emissive = new THREE.Color(0x6b4a00); o.material.emissiveIntensity = 1; } }
+    else if (o.userData.mat0) { o.material.dispose(); o.material = o.userData.mat0; delete o.userData.mat0; }
+  });
+}
 function setSelected3D(id) {
-  for (const sid in R3.slotGroups) {
-    R3.slotGroups[sid].traverse(o => { if (o.userData.outline) o.material = sid === id ? OUT_SEL : OUT; });
-  }
-  if (R3.gear) R3.gear.traverse(o => { if (o.userData.outline) o.material = id === 'caja' ? OUT_SEL : OUT; });
-  if (R3.engGroup) R3.engGroup.children.forEach(ch => { if (!Object.values(R3.slotGroups).includes(ch)) ch.traverse(o => { if (o.userData.outline) o.material = id === 'motor' ? OUT_SEL : OUT; }); });
+  for (const sid in R3.slotGroups) glowGroup(R3.slotGroups[sid], sid === id);
+  if (R3.gear) glowGroup(R3.gear, id === 'caja');
+  if (R3.engGroup) R3.engGroup.children.forEach(ch => { if (!Object.values(R3.slotGroups).includes(ch)) glowGroup(ch, id === 'motor'); });
 }
 const _ray = typeof THREE !== 'undefined' ? new THREE.Raycaster() : null;
 function pick3D(nx, ny, view) {
@@ -717,8 +794,8 @@ function resize3D() {
   if (!R3.ok) return;
   const r = R3.canvas.getBoundingClientRect();
   if (!r.width) return;
-  const target = r.width < 500 ? 300 : 400;
-  const w = Math.round(target), h = Math.round(target * r.height / r.width);
+  const dpr = Math.min(window.devicePixelRatio || 1, r.width < 600 ? 1.75 : 1.5);
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
   if (R3.w !== w || R3.h !== h) { R3.w = w; R3.h = h; R3.renderer.setSize(w, h, false); R3.cam.aspect = w / h; R3.cam.updateProjectionMatrix(); }
 }
 function frame3D(g, dt) {

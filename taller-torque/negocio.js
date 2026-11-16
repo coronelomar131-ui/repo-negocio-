@@ -25,6 +25,7 @@ function carValue(c) {
   for (const j of failingJobs(c)) v -= j.labor + 900;
   v -= Math.min(15000, c.km / 1000 * 40);
   if (c.mods.bayMod) v -= 3000;
+  v -= (c.rust || 0) * 14000;
   return Math.max(3000, Math.round(v / 100) * 100);
 }
 
@@ -40,6 +41,7 @@ function marketCar() {
   c.km = Math.round(40000 + Math.random() * 200000);
   c.oil.quality = 0.3 + Math.random() * 0.6;
   c.owner = 'venta';
+  c.rust = Math.random() < 0.55 ? +(0.25 + Math.random() * 0.7).toFixed(2) : 0;
   const n = Math.random() < 0.2 ? 0 : 1 + RNG.int(3);
   const pool = jobsFor(c).slice();
   c.faults = [];
@@ -92,6 +94,16 @@ function sellCar(uid) {
   G.cars = G.cars.filter(x => x !== c);
   if (G.car === c) setCar(G.cars[0] || null);
   toast(`Vendiste el ${carName(c)} en ${fmt$(offer)}.`, 'info');
+  refreshAll(); save();
+}
+const COLORES = [['#d8443a', 'Rojo'], ['#3d7ccf', 'Azul'], ['#f0b429', 'Amarillo'], ['#e6e9ed', 'Blanco'], ['#1d1e22', 'Negro'], ['#5aa65b', 'Verde'], ['#7a3fb0', 'Morado'], ['#8b929c', 'Plata']];
+function paintCar(uid, colr) {
+  const c = G.cars.find(x => x.uid === uid); if (!c) return;
+  if (c.owner !== 'mio') { toast('Solo puedes pintar tus autos.', 'warn'); return; }
+  const price = G.mode === 'lab' ? 0 : 4500;
+  if (G.money < price) { toast('No te alcanza.', 'warn'); return; }
+  G.money -= price; c.color = colr; c.rust = 0;
+  toast(`Lijado, quitado el óxido y pintado. (${fmt$(price)})`, 'info');
   refreshAll(); save();
 }
 function sellPart(kind, uid) {
@@ -404,7 +416,7 @@ function buyUpg(k) {
 /* ---------- paneles: Autos y Negocio ---------- */
 function carRow(c, btns) {
   const fl = c.owner === 'mio' ? failingJobs(c).length : null;
-  return `<li class="item car"><span class="sw-car" style="background:${MODELOS[c.model].color}"></span><div class="it-txt"><b>${esc(carName(c))}</b>
+  return `<li class="item car"><span class="sw-car" style="background:${c.color || MODELOS[c.model].color}"></span><div class="it-txt"><b>${esc(carName(c))}</b>
     <span>${esc(MODELOS[c.model].tipo)} · ${c.caja ? CAJAS[c.caja.id].short + (c.caja.health <= 0 ? ' ROTA' : '') : 'sin caja'} · ${c.km.toLocaleString('es-MX')} km${c.owner === 'cliente' ? ' · <b>cliente</b>' : ''}${fl !== null && G.revealed && G.revealed[c.uid] ? ' · ' + fl + ' fallas' : ''}</span></div><div class="acts">${btns}</div></li>`;
 }
 function renderAutos() {
@@ -413,7 +425,8 @@ function renderAutos() {
   for (const c of G.cars) {
     const active = c === G.car;
     h += carRow(c, `${active ? '<span class="pill ok">En el elevador</span>' : `<button class="btn sm" data-act="work" data-uid="${c.uid}">Trabajar</button>`}
-      ${c.owner === 'mio' ? `<button class="btn sm ghost" data-act="sell" data-uid="${c.uid}">Vender ~${fmt$(carValue(c) * 0.9)}</button>` : ''}`);
+      ${c.owner === 'mio' ? `<button class="btn sm ghost" data-act="sell" data-uid="${c.uid}">Vender ~${fmt$(carValue(c) * 0.9)}</button>` : ''}`)
+      + (c.owner === 'mio' ? `<li class="paint-row"><span class="small muted">${c.rust > 0.05 ? 'Óxido ' + Math.round(c.rust * 100) + '% · ' : ''}Pintar (${fmt$(G.mode === 'lab' ? 0 : 4500)}):</span>${COLORES.map(([h, n]) => `<button class="swatch" style="background:${h}" data-act="paint" data-uid="${c.uid}" data-col="${h}" aria-label="Pintar de ${n}" title="${n}"></button>`).join('')}</li>` : '');
   }
   h += `</ul>`;
   h += `<h3>Almacén de motores</h3>${G.engines.length ? '<ul class="items">' + G.engines.map(e => `<li class="item"><div class="it-txt"><b>${esc(MOTORES[e.engId].name)}</b><span>${e.seized ? 'Desvielado' : MOTORES[e.engId].cyl + ' cil. · ' + (MOTORES[e.engId].turbo ? 'turbo' : 'atmosférico') + ' · aceite ' + e.oil.level.toFixed(1) + ' L'}</span></div><button class="btn sm ghost" data-act="sellmotor" data-uid="${e.uid}">Vender</button></li>`).join('') + '</ul>' : '<p class="muted">Vacío.</p>'}`;
@@ -421,7 +434,7 @@ function renderAutos() {
   h += `<h2 class="p-title">Mercado de autos</h2><p class="muted">Lo que dice el vendedor no siempre es todo. Revísalo bien después de comprarlo.</p><ul class="items">`;
   G.market.cars.forEach((L, i) => {
     const c = L.car;
-    h += `<li class="item col"><div class="row"><span class="sw-car" style="background:${MODELOS[c.model].color}"></span><div class="it-txt"><b>${esc(carName(c))} · ${fmt$(G.mode === 'lab' ? 0 : L.price)}</b><span>${esc(MODELOS[c.model].tipo)} · ${CAJAS[c.caja.id].short} · ${c.km.toLocaleString('es-MX')} km</span></div></div><p class="muted small">${esc(L.text)}</p><div class="acts"><button class="btn sm primary" data-act="buyauto" data-i="${i}">Comprar</button></div></li>`;
+    h += `<li class="item col"><div class="row"><span class="sw-car" style="background:${MODELOS[c.model].color}"></span><div class="it-txt"><b>${esc(carName(c))} · ${fmt$(G.mode === 'lab' ? 0 : L.price)}</b><span>${esc(MODELOS[c.model].tipo)} · ${CAJAS[c.caja.id].short} · ${c.km.toLocaleString('es-MX')} km${c.rust > 0.05 ? ' · oxidado' : ''}</span></div></div><p class="muted small">${esc(L.text)}</p><div class="acts"><button class="btn sm primary" data-act="buyauto" data-i="${i}">Comprar</button></div></li>`;
   });
   h += `</ul><h2 class="p-title">Deshuesadero</h2><ul class="items">`;
   G.market.engines.forEach((L, i) => {
