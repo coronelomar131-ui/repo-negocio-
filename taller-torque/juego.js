@@ -18,6 +18,13 @@ const G = {
   cars: [], engines: [], cajas: [], emps: [], cands: [], day: 1, upg: new Set(), market: { cars: [], engines: [], cajas: [] }, revealed: {},
 };
 
+/* dinero ilimitado: con G.inf el dinero nunca baja */
+G._money = 6000; G.inf = false;
+Object.defineProperty(G, 'money', { get() { return G.inf ? 9.99e9 : G._money; }, set(v) { if (!G.inf) G._money = v; }, enumerable: true, configurable: true });
+function addMoney(v) { if (G.mode === 'taller') G.money += v; }
+function cajaTxt() { return G.mode === 'lab' ? 'Libre' : G.inf ? '∞' : fmt$(G.money); }
+function setInf(on) { G.inf = !!on; try { localStorage.setItem('tallerTorque.inf', G.inf ? '1' : '0'); } catch (e) { } refreshAll(); save(); toast(G.inf ? 'Dinero ilimitado activado.' : 'Dinero ilimitado apagado. Vuelves a tu caja normal.', 'info'); }
+
 /* ---------- utilidades ---------- */
 function toast(msg, kind) {
   const el = $('#toast');
@@ -487,8 +494,9 @@ function showResult(r) {
 /* ---------- interfaz: barras y paneles ---------- */
 function refreshAll() { refreshStats(); renderBelt(); refreshPanel(true); renderSelbar(); syncButtons(); }
 function refreshStats() {
-  $('#sMoney').textContent = G.mode === 'lab' ? 'Libre' : fmt$(G.money);
+  $('#sMoney').textContent = cajaTxt();
   $('#sMoney').classList.toggle('neg', G.money < 0 && G.mode !== 'lab');
+  $('#sMoney').closest('.chip').classList.toggle('inf', !!G.inf);
   const r = Math.round(G.rep * 2) / 2;
   $('#sRep').textContent = '★'.repeat(Math.floor(r)) + (r % 1 ? '½' : '') + '☆'.repeat(5 - Math.ceil(r));
   $('#sRep').setAttribute('aria-label', `Reputación ${r} de 5`);
@@ -832,7 +840,7 @@ function syncViews() {
   if (G.view !== 'mundo' && typeof MUNDO !== 'undefined' && MUNDO.mode === 'auto') exitCar();
   if (G.view === 'mundo') { G.thr = 0; G.full = false; startMundo(); }
   if (['cofre', 'abajo', 'corte', 'banco'].includes(G.view) && G.car) putOnLift(G.car);
-  if (G.view === 'pista') { if (RACE.state !== 'run' && RACE.state !== 'stage') { RACE.state = 'menu'; RACE.V = null; } renderRaceBox(); }
+  if (G.view === 'pista') { if (RACE.state !== 'run' && RACE.state !== 'stage') { RACE.state = 'menu'; RACE.V = null; buildRace(); if (RACE.built && G.car && G.car.engId) setupRaceCars(); } renderRaceBox(); }
   else if (RACE.V && RACE.state !== 'menu') { RACE.state = 'menu'; RACE.V = null; G.full = false; }
   syncButtons();
 }
@@ -859,6 +867,8 @@ function onAction(act, el) {
     case 'buycaja': buyListing('caja', +el.dataset.i); return;
     case 'closeday': closeDay(); return;
     case 'hire': hire(uid); return;
+    case 'cands': if (G.mode === 'taller' && !G.inf && G.money < 300) { toast('No te alcanza para el anuncio ($300).', 'warn'); return; } if (G.mode === 'taller') G.money -= 300; genCands(); refreshAll(); save(); toast('Pusiste un anuncio. Llegaron candidatos nuevos.', 'info'); return;
+    case 'inf': setInf(!G.inf); return;
     case 'fire': fireEmp(uid); return;
     case 'upg': buyUpg(el.dataset.k); return;
     case 'racego': raceStart(); return;
@@ -917,6 +927,7 @@ function loop(ts) {
   const dt = Math.min(0.05, (ts - lastT) / 1000 || 0.016);
   lastT = ts;
   G.t += dt;
+  if ($('#start').hidden) empTick(dt);
   const c = G.car;
   if (!c) {
     if (G.view === 'mundo' && R3.ok) { mundoTick(dt); frameMundo(dt); }
@@ -1036,6 +1047,7 @@ function drawDyno() {
 /* ---------- arranque ---------- */
 function startGame(mode) {
   G.mode = mode === 'lab' ? 'lab' : 'taller';
+  try { G.inf = localStorage.getItem('tallerTorque.inf') === '1'; } catch (e) { G.inf = false; }
   G.tools = new Set(Object.keys(TOOLS).filter(t => TOOLS[t].start));
   G.bench = []; G.cars = []; G.engines = []; G.cajas = []; G.emps = []; G.cands = []; G.upg = new Set(); G.day = 1; G.job = null;
   if (mode === 'lab') {
@@ -1052,7 +1064,7 @@ function startGame(mode) {
     const d = load();
     if (d && mode === 'continuar') restore(d);
     else {
-      G.money = 9000; G.rep = 3; G.jobN = 0;
+      G._money = 9000; G.rep = 3; G.jobN = 0;
       G.bench.push(newItem('aceite', { shop: true, cost: PARTS.aceite.price }));
       genMarket(); genCands();
       newJob();
@@ -1172,8 +1184,10 @@ function renderStart() {
   $('#startActions').innerHTML = `
     ${d ? `<button class="btn primary big" data-start="continuar">Continuar (${fmt$(d.money)})</button>` : ''}
     <button class="btn ${d ? '' : 'primary'} big" data-start="taller">Abrir el taller${d ? ' (nuevo)' : ''}</button>
-    <button class="btn big" data-start="lab">Laboratorio del turbo</button>`;
+    <button class="btn big" data-start="lab">Laboratorio del turbo</button>
+    <label class="inf-row"><input type="checkbox" id="infStart" ${(() => { try { return localStorage.getItem('tallerTorque.inf') === '1'; } catch (e) { return false; } })() ? 'checked' : ''}> <span><b>Dinero ilimitado</b> · compra lo que quieras sin que baje tu caja</span></label>`;
   $$('[data-start]').forEach(b => b.onclick = () => startGame(b.dataset.start));
+  $('#infStart').onchange = e => { try { localStorage.setItem('tallerTorque.inf', e.target.checked ? '1' : '0'); } catch (er) { } };
 }
 
 function holdBtn(el, on, off) {

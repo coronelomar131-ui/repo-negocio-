@@ -222,7 +222,16 @@ function updateRaceHud() {
 }
 function frameRace(dt) {
   if (!RACE.built || !RACE.player || !RACE.V) {
-    if (R3.ok && RACE.built) R3.renderer.render(RACE.scene, RACE.cam);
+    if (R3.ok && RACE.built) {
+      resize3D();
+      RACE.cam.aspect = R3.cam.aspect; RACE.cam.updateProjectionMatrix();
+      RACE.prevT = (RACE.prevT || 0) + dt * 0.25;
+      const p = RACE.player ? RACE.player.position : { x: -560, y: 0, z: 0 }, a = -0.9 + Math.sin(RACE.prevT) * 0.5;
+      RACE.cam.position.set(p.x + 160 + Math.sin(a) * 1500, 380, p.z + Math.cos(a) * 1500);
+      RACE.cam.lookAt(p.x + 160, -60, p.z + 300);
+      if (RACE.sun) { RACE.sun.position.set(p.x - 700, 1400, p.z + 500); RACE.sun.target.position.set(p.x, -200, p.z); }
+      R3.renderer.render(RACE.scene, RACE.cam);
+    }
     return;
   }
   resize3D();

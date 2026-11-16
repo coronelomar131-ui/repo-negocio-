@@ -1,5 +1,5 @@
 /* Taller Torque: funciona sin internet una vez instalado. */
-const CACHE = 'taller-torque-v7';
+const CACHE = 'taller-torque-v8';
 const FILES = ['./', './index.html', './estilos.css', './datos.js', './motor.js', './audio.js', './dibujo.js', './lib/three.min.js',
   './render3d.js', './negocio.js', './carrera.js', './mundo.js', './juego.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });

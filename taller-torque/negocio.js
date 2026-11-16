@@ -346,43 +346,66 @@ function reflash() {
 /* ---------- empleados y días ---------- */
 function genCands() {
   G.cands = [];
-  for (let i = 0; i < 3; i++) {
-    const p = PUESTOS[Math.min(2, RNG.int(3 + (G.day > 5 ? 1 : 0)))];
+  for (let i = 0; i < 5; i++) {
+    const p = PUESTOS[i < 2 ? i : RNG.int(3)];
     const sk = p.skill[0] + Math.random() * (p.skill[1] - p.skill[0]);
     G.cands.push({ uid: ++UID, name: NOMBRES[RNG.int(NOMBRES.length)], puesto: p.id, skill: sk, pay: Math.round((p.pay[0] + Math.random() * (p.pay[1] - p.pay[0])) / 10) * 10, task: 'clientes' });
   }
 }
 function hire(uid) {
   const i = G.cands.findIndex(x => x.uid === uid); if (i < 0) return;
-  if (G.emps.length >= 2 + capacity()) { toast('No caben más empleados en el taller.', 'warn'); return; }
-  G.emps.push(G.cands.splice(i, 1)[0]);
-  toast('Contratado. Su sueldo se paga al cerrar cada día.', 'info'); refreshAll(); save();
+  if (G.emps.length >= maxEmps()) { toast(`Ya tienes ${maxEmps()} empleados, el máximo para tu taller. Compra otro elevador en Mejoras para que quepan más.`, 'warn'); return; }
+  const e = G.cands.splice(i, 1)[0]; e.prog = 0; e.jobs = 0; e.today = 0;
+  const free = c => failingJobs(c).length && !G.emps.some(x => x.task === c.uid);
+  const car = G.cars.find(c => c.owner === 'mio' && free(c)) || G.cars.find(free);
+  e.task = car ? car.uid : 'clientes';
+  G.emps.push(e);
+  toast(`${e.name} ya trabaja contigo. ${car ? `Empezó a reparar el ${carName(car)}.` : 'Está atendiendo clientes en el mostrador.'}`, 'info'); refreshAll(); save();
+}
+function maxEmps() { return 2 + capacity(); }
+/* los empleados trabajan en tiempo real mientras juegas */
+function empTick(dt) {
+  if (!G.emps.length) return;
+  for (const e of G.emps) {
+    e.prog = e.prog || 0;
+    if (e.task === 'clientes') {
+      e.prog += dt / 45;
+      if (e.prog >= 1) {
+        e.prog = 0; e.jobs = (e.jobs || 0) + 1;
+        const bonus = G.upg.has('letrero') ? 1.2 : 1;
+        if (Math.random() < (1 - e.skill) * 0.4) { addMoney(-200); e.today = (e.today || 0) - 200; G.rep = Math.max(0, G.rep - 0.05); toast(`${e.name} atendió mal a un cliente y le regresaste $200.`, 'warn'); }
+        else { const earn = Math.round((350 + 550 * e.skill) * bonus); addMoney(earn); e.today = (e.today || 0) + earn; toast(`${e.name} atendió a un cliente: +${fmt$(earn)}.`, 'info'); }
+        refreshStats(); save();
+      }
+      continue;
+    }
+    const c = G.cars.find(x => x.uid === e.task);
+    if (!c) { e.task = 'clientes'; continue; }
+    if ((c === G.car && c.sim.om > 1) || (typeof MUNDO !== 'undefined' && MUNDO.car === c) || c.proc) { e.wait = true; continue; }
+    e.wait = false;
+    const fl = failingJobs(c);
+    if (!fl.length) { if (!e.idle) { e.idle = true; toast(`${e.name}: el ${carName(c)} ya quedó. Dale otra tarea en Personal.`, 'info'); } continue; }
+    e.idle = false;
+    e.prog += dt / (60 * (1.5 - e.skill));
+    if (e.prog >= 1) {
+      e.prog = 0; e.jobs = (e.jobs || 0) + 1;
+      const j = fl[0], cost = j.fix(c) || 0;
+      addMoney(-cost); e.today = (e.today || 0) - cost;
+      let loose = false;
+      if (Math.random() < (1 - e.skill) * 0.35) { const ids = Object.keys(c.defs).filter(k => c.defs[k].torque > 0 && c.slots[k] && c.slots[k].item); const k = ids[RNG.int(ids.length)]; if (k) { c.slots[k].tq = { lo: 0.6, hi: 0.6, ok: true }; loose = true; } }
+      toast(`${e.name} reparó el ${carName(c)} (${fmt$(cost)} en piezas)${loose ? ', pero dejó un tornillo flojo. Revísalo.' : '.'}`, loose ? 'warn' : 'info');
+      refreshAll(); save();
+    }
+  }
 }
 function fireEmp(uid) { G.emps = G.emps.filter(e => e.uid !== uid); refreshAll(); save(); }
 function closeDay() {
   if (G.car && G.car.sim.om > 1) { toast('Apaga el motor antes de cerrar.', 'warn'); return; }
   const lines = [];
   let net = 0;
-  const bonus = G.upg.has('letrero') ? 1.2 : 1;
   for (const e of G.emps) {
-    if (e.task === 'clientes') {
-      let earn = 0, bad = 0;
-      for (let k = 0; k < 2; k++) {
-        if (Math.random() < (1 - e.skill) * 0.4) { bad++; earn -= 200; G.rep = Math.max(0, G.rep - 0.05); }
-        else earn += Math.round((350 + 550 * e.skill) * bonus);
-      }
-      net += earn; lines.push(`${e.name} atendió 2 clientes: ${fmt$(earn)}${bad ? ` (${bad} regresó molesto)` : ''}.`);
-    } else {
-      const c = G.cars.find(x => x.uid === e.task);
-      if (!c) { e.task = 'clientes'; continue; }
-      const fl = failingJobs(c);
-      if (!fl.length) { lines.push(`${e.name}: el ${carName(c)} ya no tiene fallas que reparar.`); continue; }
-      const j = fl[0];
-      const cost = j.fix(c);
-      net -= cost;
-      if (Math.random() < (1 - e.skill) * 0.35) { const ids = Object.keys(c.defs).filter(k => c.defs[k].torque > 0 && c.slots[k] && c.slots[k].item); const k = ids[RNG.int(ids.length)]; if (k) c.slots[k].tq = { lo: 0.6, hi: 0.6, ok: true }; lines.push(`${e.name} reparó "${j.id}" en el ${carName(c)} (${fmt$(cost)} en piezas), pero dejó algo flojo.`); }
-      else lines.push(`${e.name} reparó "${j.id}" en el ${carName(c)} (${fmt$(cost)} en piezas).`);
-    }
+    lines.push(`${e.name}: ${e.jobs || 0} trabajo${e.jobs === 1 ? '' : 's'} hoy.`);
+    e.jobs = 0; e.today = 0;
     net -= e.pay;
   }
   const rent = 500 + 250 * (capacity() - 2);
@@ -400,7 +423,7 @@ function showDay(lines, net) {
   const m = $('#result');
   m.innerHTML = `<div class="modal-card"><h2 class="m-title">Día ${G.day - 1} cerrado</h2>
     <ul>${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
-    <div class="bill"><div class="total"><span>Resultado del día</span><b>${fmt$(net)}</b></div><div><span>Caja</span><b>${fmt$(G.money)}</b></div></div>
+    <div class="bill"><div class="total"><span>Gastos del día</span><b>${fmt$(net)}</b></div><div><span>Caja</span><b>${G.inf ? "Ilimitado" : cajaTxt()}</b></div></div>
     <p class="muted">Hay autos nuevos en el mercado y candidatos nuevos.</p>
     <div class="m-actions"><button class="btn primary" id="btnDayOk">Abrir el día ${G.day}</button></div></div>`;
   m.hidden = false;
@@ -450,23 +473,31 @@ function renderAutos() {
 }
 function renderNegocio() {
   const el = $('#p-negocio');
-  let h = `<h2 class="p-title">Día ${G.day}</h2><p>Al cerrar el día se pagan sueldos y renta, tus empleados trabajan y llegan autos nuevos al mercado.</p>
-    <div class="acts"><button class="btn primary" data-act="closeday">Cerrar el día</button></div>
-    <h3>Empleados (${G.emps.length})</h3>`;
-  if (!G.emps.length) h += '<p class="muted">Nadie todavía.</p>';
+  const PD = { aprendiz: 'Lento y se equivoca seguido. Barato.', mecanico: 'Repara a buen ritmo y casi no deja nada flojo.', maestro: 'Rápido y preciso. Cobra caro.' };
+  const bar = p => `<i class="emp-bar"><b style="width:${Math.round(Math.min(1, p) * 100)}%"></b></i>`;
+  let h = `<h2 class="p-title">Tu personal</h2>
+    ${G.mode === 'taller' ? `<div class="inf-box"><div><b>Dinero ilimitado</b><span>${G.inf ? 'Activado: compra y contrata sin límite.' : 'Apagado: juegas con tu caja real.'}</span></div><button class="btn sm ${G.inf ? 'primary' : ''}" data-act="inf" aria-pressed="${!!G.inf}">${G.inf ? 'Sí' : 'No'}</button></div>` : ''}
+    <p>Tus empleados trabajan <b>mientras juegas</b>: los ves en el Mundo, dentro del taller, junto al auto que reparan. El sueldo se paga al cerrar el día.</p>
+    <h3>Empleados (${G.emps.length} de ${maxEmps()})</h3>`;
+  if (!G.emps.length) h += '<p class="muted">Nadie todavía. Contrata abajo.</p>';
   h += '<ul class="items">';
   for (const e of G.emps) {
-    const opts = [`<option value="clientes" ${e.task === 'clientes' ? 'selected' : ''}>Atender clientes</option>`].concat(G.cars.filter(c => c.owner === 'mio').map(c => `<option value="${c.uid}" ${e.task === c.uid ? 'selected' : ''}>Reparar ${esc(carName(c))}</option>`));
-    h += `<li class="item col"><div class="it-txt"><b>${esc(e.name)} · ${esc(PUESTOS.find(p => p.id === e.puesto).name)}</b><span>Habilidad ${Math.round(e.skill * 100)}% · ${fmt$(e.pay)}/día</span></div>
+    const opts = [`<option value="clientes" ${e.task === 'clientes' ? 'selected' : ''}>Atender clientes (cobra en el mostrador)</option>`].concat(G.cars.map(c => `<option value="${c.uid}" ${e.task === c.uid ? 'selected' : ''}>Reparar ${esc(carName(c))}${c.owner === 'mio' ? '' : ' (cliente)'}</option>`));
+    const c = e.task !== 'clientes' ? G.cars.find(x => x.uid === e.task) : null;
+    const st = e.task === 'clientes' ? 'Atendiendo clientes' : !c ? '—' : e.wait ? `Esperando: estás usando el ${carName(c)}` : failingJobs(c).length ? `Reparando ${carName(c)}` : `Terminó el ${carName(c)}: dale otra tarea`;
+    h += `<li class="item col emp"><div class="emp-av p-${e.puesto}" aria-hidden="true">${esc(e.name[0])}</div><div class="it-txt"><b>${esc(e.name)} · ${esc(PUESTOS.find(p => p.id === e.puesto).name)}</b><span>Habilidad ${Math.round(e.skill * 100)}% · ${fmt$(e.pay)}/día · ${e.jobs || 0} trabajos hoy</span><span class="emp-st">${esc(st)}</span>${bar(e.prog || 0)}</div>
       <div class="acts"><label class="sr" for="task-${e.uid}">Tarea de ${esc(e.name)}</label><select id="task-${e.uid}" data-task="${e.uid}">${opts.join('')}</select><button class="btn sm ghost" data-act="fire" data-uid="${e.uid}">Despedir</button></div></li>`;
   }
-  h += '</ul><h3>Candidatos</h3><ul class="items">';
-  for (const e of G.cands) h += `<li class="item"><div class="it-txt"><b>${esc(e.name)} · ${esc(PUESTOS.find(p => p.id === e.puesto).name)}</b><span>Habilidad ${Math.round(e.skill * 100)}% · ${fmt$(e.pay)}/día</span></div><button class="btn sm" data-act="hire" data-uid="${e.uid}">Contratar</button></li>`;
+  h += `</ul><h3>Contratar</h3><ul class="items">`;
+  for (const e of G.cands) h += `<li class="item emp"><div class="emp-av p-${e.puesto}" aria-hidden="true">${esc(e.name[0])}</div><div class="it-txt"><b>${esc(e.name)} · ${esc(PUESTOS.find(p => p.id === e.puesto).name)}</b><span>Habilidad ${Math.round(e.skill * 100)}% · ${fmt$(e.pay)}/día</span><span class="muted">${PD[e.puesto]}</span></div><button class="btn sm primary" data-act="hire" data-uid="${e.uid}" ${G.emps.length >= maxEmps() ? 'disabled' : ''}>Contratar</button></li>`;
+  h += `</ul><div class="acts"><button class="btn" data-act="cands">Buscar más candidatos${G.mode === 'taller' && !G.inf ? ' ($300)' : ''}</button></div>
+    <h3>Día ${G.day}</h3><p class="muted">Al cerrar el día se pagan sueldos y renta y llegan autos nuevos al mercado.</p>
+    <div class="acts"><button class="btn" data-act="closeday">Cerrar el día</button></div>`;
   h += '</ul><h3>Mejoras del taller</h3><ul class="items">';
   for (const k in MEJORAS) h += `<li class="item"><div class="it-txt"><b>${esc(MEJORAS[k].name)}</b><span>${esc(MEJORAS[k].desc)}</span></div>${G.upg.has(k) ? '<span class="pill ok">Listo</span>' : `<button class="btn sm" data-act="upg" data-k="${k}">${fmt$(G.mode === 'lab' ? 0 : MEJORAS[k].price)}</button>`}</li>`;
   h += '</ul>';
   el.innerHTML = h;
-  $$('[data-task]').forEach(s => s.onchange = () => { const e = G.emps.find(x => x.uid === +s.dataset.task); if (e) { e.task = s.value === 'clientes' ? 'clientes' : +s.value; save(); } });
+  $$('[data-task]').forEach(s => s.onchange = () => { const e = G.emps.find(x => x.uid === +s.dataset.task); if (e) { e.task = s.value === 'clientes' ? 'clientes' : +s.value; e.prog = 0; e.idle = false; save(); renderNegocio(); } });
 }
 
 /* ---------- guardado completo ---------- */
@@ -476,7 +507,7 @@ function save() {
   if (G.mode !== 'taller') return;
   try {
     localStorage.setItem('tallerTorque.v2', JSON.stringify({
-      v: 2, money: G.money, rep: G.rep, jobN: G.jobN, day: G.day, uid: UID, tools: [...G.tools], upg: [...G.upg],
+      v: 2, money: G._money, inf: G.inf, rep: G.rep, jobN: G.jobN, day: G.day, uid: UID, tools: [...G.tools], upg: [...G.upg],
       bench: G.bench, cars: G.cars.map(serCar), engines: G.engines, cajas: G.cajas, emps: G.emps, cands: G.cands,
       active: G.car ? G.car.uid : null, job: G.job ? { id: G.job.id, def: G.job.def.id, client: G.job.client, queja: G.job.queja, labor: G.job.labor, carUid: G.job.carUid, dmg0: G.job.dmg0 } : null,
     }));
@@ -489,7 +520,7 @@ function load() {
   } catch (e) { return null; }
 }
 function restore(d) {
-  G.money = d.money; G.rep = d.rep; G.jobN = d.jobN; G.day = d.day || 1; UID = Math.max(UID, d.uid || 0);
+  G._money = d.money; G.inf = !!d.inf; G.rep = d.rep; G.jobN = d.jobN; G.day = d.day || 1; UID = Math.max(UID, d.uid || 0);
   G.tools = new Set(d.tools); G.upg = new Set(d.upg || []); G.bench = d.bench || [];
   G.cars = (d.cars || []).map(deserCar); G.engines = d.engines || []; G.cajas = d.cajas || []; G.emps = d.emps || []; G.cands = d.cands || [];
   G.job = null;

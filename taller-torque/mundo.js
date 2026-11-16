@@ -121,22 +121,73 @@ function buildMundo() {
   MUNDO.built = true;
 }
 function buildChar() {
+  const g = makeChar('#2e5f9e', '#d8443a');
+  MUNDO.legs = g.userData.legs; MUNDO.arms = g.userData.arms;
+  return g;
+}
+function makeChar(shirt, cap) {
   const g = new THREE.Group();
   const B = new Batch();
   // torso con overol, cabeza, gorra
-  B.boxc(0, 250, 0, 90, 120, 56, '#2e5f9e');
+  B.boxc(0, 250, 0, 90, 120, 56, shirt);
   B.boxc(0, 280, 29, 50, 30, 2, '#f0b429', { ol: false });
   B.boxc(0, 340, 0, 60, 60, 60, '#e0a77a');
-  B.boxc(0, 376, 0, 64, 16, 64, '#d8443a');
-  B.boxc(0, 372, 36, 50, 6, 26, '#d8443a');
+  B.boxc(0, 376, 0, 64, 16, 64, cap);
+  B.boxc(0, 372, 36, 50, 6, 26, cap);
   B.boxc(-14, 344, 31, 8, 8, 2, '#121318', { ol: false }); B.boxc(14, 344, 31, 8, 8, 2, '#121318', { ol: false });
   B.build(g);
   const limb = (x, y, w, h, col, foot) => { const p = new THREE.Group(); p.position.set(x, y, 0); const L = new Batch(); L.boxc(0, -h / 2, 0, w, h, w, col); if (foot) L.boxc(0, -h + 6, 10, w + 4, 14, w + 18, '#1a1b1f'); L.build(p); g.add(p); return p; };
-  MUNDO.legs = [limb(-24, 190, 36, 180, '#24467a', true), limb(24, 190, 36, 180, '#24467a', true)];
-  MUNDO.arms = [limb(-60, 300, 28, 130, '#2e5f9e'), limb(60, 300, 28, 130, '#2e5f9e')];
-  MUNDO.arms.forEach(a => { const h = new Batch(); h.boxc(0, -136, 0, 26, 22, 26, '#e0a77a'); h.build(a); });
+  g.userData.legs = [limb(-24, 190, 36, 180, '#24467a', true), limb(24, 190, 36, 180, '#24467a', true)];
+  g.userData.arms = [limb(-60, 300, 28, 130, shirt), limb(60, 300, 28, 130, shirt)];
+  g.userData.arms.forEach(a => { const h = new Batch(); h.boxc(0, -136, 0, 26, 22, 26, '#e0a77a'); h.build(a); });
   g.scale.setScalar(0.62);
   return g;
+}
+/* empleados: aparecen junto al auto que reparan o en el mostrador */
+const EMP_COL = { aprendiz: ['#3f8f4f', '#2b2d33'], mecanico: ['#c46a1e', '#1f4e8c'], maestro: ['#2b2d33', '#f0b429'] };
+function nameTag(text) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const x = cv.getContext('2d');
+  x.fillStyle = 'rgba(12,14,18,.78)'; x.beginPath(); if (x.roundRect) x.roundRect(4, 8, 248, 48, 24); else x.rect(4, 8, 248, 48); x.fill();
+  x.fillStyle = '#fff'; x.font = '700 28px Rubik, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 128, 33);
+  const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  s.scale.set(560, 140, 1); s.position.y = 600; s.renderOrder = 5;
+  return s;
+}
+function syncEmpChars(dt) {
+  MUNDO.emps = MUNDO.emps || {};
+  const live = new Set(G.emps.map(e => e.uid));
+  for (const id in MUNDO.emps) if (!live.has(+id)) { MUNDO.scene.remove(MUNDO.emps[id]); delete MUNDO.emps[id]; }
+  let desk = 0;
+  const used = {};
+  for (const e of G.emps) {
+    let g = MUNDO.emps[e.uid];
+    if (!g) {
+      const [sh, cp] = EMP_COL[e.puesto] || EMP_COL.mecanico;
+      g = makeChar(sh, cp); g.add(nameTag(e.name)); g.userData.t = Math.random() * 6;
+      MUNDO.scene.add(g); MUNDO.emps[e.uid] = g;
+    }
+    const c = e.task !== 'clientes' ? G.cars.find(x => x.uid === e.task) : null;
+    let x, z, h, work;
+    if (c && c.pos && MUNDO.car !== c) {
+      const k = used[c.uid] = (used[c.uid] || 0) + 1;
+      const side = k % 2 ? 1 : -1, ch = c.pos.h;
+      // al lado del cofre del auto, mirándolo
+      const fx = Math.sin(ch), fz = Math.cos(ch), rx = Math.cos(ch), rz = -Math.sin(ch);
+      x = c.pos.x + fx * 1.2 * MW + rx * side * 1.45 * MW; z = c.pos.z + fz * 1.2 * MW + rz * side * 1.45 * MW;
+      h = Math.atan2(c.pos.x + fx * 1.2 * MW - x, c.pos.z + fz * 1.2 * MW - z);
+      work = !e.wait && failingJobs(c).length > 0;
+    } else {
+      x = (-10 + desk * 3.2) * MW; z = 9 * MW; h = 0; work = false; desk++;
+    }
+    g.position.set(x, GROUND, z); g.rotation.y = h;
+    g.userData.t += dt;
+    const t = g.userData.t, [L0, L1] = g.userData.legs, [A0, A1] = g.userData.arms;
+    L0.rotation.x = L1.rotation.x = 0;
+    if (work) { A0.rotation.x = -1.3 + Math.sin(t * 7) * 0.35; A1.rotation.x = -1.1 + Math.sin(t * 7 + 1.6) * 0.35; g.position.y = GROUND - 4 + Math.sin(t * 7) * 3; }
+    else { A0.rotation.x = Math.sin(t * 1.5) * 0.12; A1.rotation.x = -Math.sin(t * 1.5) * 0.12; }
+  }
 }
 
 /* ---------- autos en el mundo ---------- */
@@ -342,6 +393,7 @@ function frameMundo(dt) {
       if (MUNDO.V.spin && Math.random() < dt * 40) fx3(MUNDO.scene, c.pos.x - Math.sin(c.pos.h) * 2 * MW, GROUND + 20, c.pos.z - Math.cos(c.pos.h) * 2 * MW, (Math.random() - 0.5) * 60, 60, (Math.random() - 0.5) * 60, 1.5, '#e8ebee', 22, 4);
     }
   }
+  syncEmpChars(dt);
   // personaje
   const ch = MUNDO.char;
   if (ch.visible) {

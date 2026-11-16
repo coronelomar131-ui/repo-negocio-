@@ -500,3 +500,104 @@ input, textarea, .panel { -webkit-user-select: text; user-select: text; }
 }
 body[data-view="banco"] #bLift, body[data-view="banco"] #bDoors, body[data-view="banco"] #bTrunk, body[data-view="banco"] #bDyno,
 body[data-view="corte"] #bLift, body[data-view="corte"] #bDoors, body[data-view="corte"] #bTrunk, body[data-view="corte"] #bLabels { display: none; }
+
+/* --- dinero ilimitado y personal --- */
+.chip.money.inf { background: linear-gradient(#ffd24d, #f0b429); color: #2a1d00; }
+.inf-row { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); cursor: pointer; font-size: 14px; }
+.inf-row input { width: 22px; height: 22px; accent-color: #f0b429; flex: none; }
+.inf-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(240,180,41,.1); margin-bottom: 8px; }
+.inf-box div { display: grid; gap: 2px; } .inf-box span { font-size: 12px; color: var(--text-3); }
+.inf-box .btn { min-width: 64px; }
+.item.emp { align-items: center; }
+.item.col.emp { display: grid; grid-template-columns: 44px 1fr; gap: 8px 10px; }
+.item.col.emp .acts { grid-column: 1 / -1; }
+.emp-av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 18px; color: #fff; flex: none; }
+.emp-av.p-aprendiz { background: #3f8f4f; } .emp-av.p-mecanico { background: #c46a1e; } .emp-av.p-maestro { background: #2b2d33; color: #f0b429; box-shadow: inset 0 0 0 2px #f0b429; }
+.emp-st { font-weight: 700; color: #ffd24d; font-size: 12px; }
+.emp-bar { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 4px; }
+.emp-bar b { display: block; height: 100%; background: linear-gradient(90deg, #f0b429, #7fdc7a); }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+/* =====================================================================
+   CELULAR EN HORIZONTAL
+   ===================================================================== */
+@media (orientation: landscape) and (max-height: 560px) {
+  .app.game { --st: max(6px, env(safe-area-inset-top, 0px)); --sl: max(10px, env(safe-area-inset-left, 0px)); --sr: max(10px, env(safe-area-inset-right, 0px)); --sb: max(6px, env(safe-area-inset-bottom, 0px)); }
+  .hud-top { padding: var(--st) var(--sr) 0 var(--sl); }
+  .chip { height: 32px; font-size: 14px; padding: 0 10px; }
+  .chip.rep { font-size: 12px; } .chip.job { display: none; }
+  .ibtn { width: 36px; height: 36px; }
+  .ibtn .ic { width: 19px; height: 19px; }
+  .game .views { top: var(--st); left: auto; right: calc(var(--sr) + 86px); transform: none; max-width: calc(100% - 420px); padding: 3px; }
+  .game .vtab { min-height: 30px; padding: 4px 9px; }
+  .game .vtab span { display: none; } .game .vtab[aria-selected="true"] span { display: inline; }
+  /* tablero a la izquierda, controles a la derecha, ocupando todo lo alto */
+  .hud-dash { top: calc(var(--st) + 42px); left: var(--sl); }
+  .hud-dash:not(.full) { width: 84px; }
+  .hud-dash .g { padding: 4px 7px; } .hud-dash .g-v { font-size: 14px; }
+  .hud-dash.full { width: min(300px, 40vw); max-height: calc(100dvh - 60px); overflow: auto; }
+  .side-ctl { top: calc(var(--st) + 42px); bottom: var(--sb); right: var(--sr); width: 112px; gap: 4px; }
+  .game .ctl { gap: 4px; }
+  .cbtn { min-height: 40px; font-size: 9px; border-radius: 11px; }
+  .cbtn .ic { width: 17px; height: 17px; }
+  .cbtn.big { min-height: 44px; font-size: 11px; }
+  .game .ctl.thr { padding: 3px 6px; }
+  .game .ctl.thr input { height: 22px; }
+  /* abajo: centrado entre el tablero y los controles */
+  .bottom { left: calc(var(--sl) + 92px); right: calc(var(--sr) + 120px); padding: 0 0 var(--sb); gap: 4px; }
+  .game .selbar { padding: 5px 10px; border-radius: 12px; }
+  .game .selbar .sel-hint { font-size: 12px; } .game .selbar .sel-name { font-size: 13px; }
+  .game .selbar .btn { min-height: 34px; padding: 4px 10px; font-size: 11px; }
+  .game .belt-wrap { padding: 3px; border-radius: 12px; }
+  .game .tool { width: 46px; padding: 2px 1px; font-size: 8.5px; }
+  .game .tool img { width: 22px; height: 22px; }
+  .dock { padding: 3px; border-radius: 14px; }
+  .dbtn { min-height: 40px; padding: 3px 1px; gap: 1px; font-size: 8.5px; border-radius: 10px; }
+  .dbtn .ic { width: 18px; height: 18px; }
+  .game .race-box { max-height: calc(100dvh - 110px); }
+  .game .cam-hint { top: calc(var(--st) + 42px); max-width: calc(100% - 330px); }
+  .game .toast { top: calc(var(--st) + 42px); width: min(480px, calc(100% - 260px)); }
+  .game .caption { top: calc(var(--st) + 84px); width: min(60%, 520px); }
+  .game #cv { width: min(calc(100vw - 240px), calc((100dvh - 150px) * 4 / 3)); transform: translate(-50%, calc(-50% - 50px)); }
+  /* mundo: joystick izquierda, pedales derecha, dock al centro */
+  body[data-view="mundo"] .bottom, body[data-view="pista"] .bottom { left: calc(var(--sl) + 140px); right: calc(var(--sr) + 140px); }
+  body[data-view="mundo"] .bottom { right: calc(var(--sr) + 230px); }
+  .game .joy { left: var(--sl); bottom: calc(var(--sb) + 6px); width: 124px; height: 124px; }
+  .game .m-drive { right: var(--sr); bottom: calc(var(--sb) + 6px); }
+  .game #minimap { top: calc(var(--st) + 42px); right: var(--sr); width: 84px; height: 84px; }
+  .game .m-map { top: calc(var(--st) + 132px); right: var(--sr); min-height: 32px; padding: 4px 10px; }
+  .game .m-btns { top: calc(var(--st) + 44px); max-width: calc(100% - 300px); }
+  .game .race-hud { padding: calc(var(--st) + 44px) calc(var(--sr) + 10px) calc(var(--sb) + 60px) calc(var(--sl) + 10px); }
+  /* paneles: cajón a la derecha */
+  .sheet { left: auto; top: 0; height: auto; width: min(440px, 62vw); border-radius: 18px 0 0 18px; animation-name: sheetIn; }
+  .game .side { border-radius: 18px 0 0 18px; }
+  .sheet-head { padding: calc(var(--st) + 2px) 8px 4px; }
+  .sheet-body { padding-right: var(--sr); }
+  .modal { padding: 8px var(--sr) 8px var(--sl); }
+  .modal-card { max-height: calc(100dvh - 16px); overflow: auto; padding: 14px; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  /* Marcha y Acelerar lado a lado para que quepa todo sin desplazar */
+  .cbtn.big { grid-column: auto; flex-direction: column; gap: 2px; min-height: 46px; font-size: 10px; }
+  .app:has(#sheet:not([hidden])) .toast { left: calc((100% - min(440px, 62vw)) / 2); width: calc(100% - min(440px, 62vw) - 24px); }
+  /* pantalla de inicio: título y botones a la vista */
+  .start-card { width: min(720px, 100%); grid-template-columns: 1fr 1fr; align-items: center; gap: 8px 18px; }
+  .start-card .start-k, .start-card .start-t { grid-column: 1; }
+  .start-card .start-t { font-size: 34px; }
+  .start-card .start-l, .start-card .start-f { display: none; }
+  .start-card .start-a { grid-column: 2; grid-row: 1 / span 3; }
+  .start-card > .muted { grid-column: 1 / -1; font-size: 11px; }
+  .game .race-box { font-size: 13px; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .start-card .start-t span:last-child { font-size: 52px; }
+  .start-card .start-a { flex-direction: column; }
+  .start-card .start-a .btn { width: 100%; }
+}
+.hud-left { flex-wrap: nowrap; min-width: 0; }
+.chip.money.inf #sMoney { font-size: 22px; line-height: 1; }
+@media (max-width: 420px) { .chip.job { display: none; } }
+.item.emp { gap: 12px; }
+.item.emp .emp-av { margin-right: 2px; }
+.item.emp .it-txt { min-width: 0; }
+.item.emp > .emp-av + .it-txt { padding-left: 6px; }
