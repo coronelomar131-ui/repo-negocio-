@@ -16,8 +16,8 @@ const R3 = {
 
 const GRAD = (() => {
   if (typeof THREE === 'undefined') return null;
-  const d = new Uint8Array([64, 64, 64, 255, 135, 135, 135, 255, 215, 215, 215, 255]);
-  const t = new THREE.DataTexture(d, 3, 1, THREE.RGBAFormat);
+  const d = new Uint8Array([46, 46, 46, 255, 92, 92, 92, 255, 142, 142, 142, 255, 194, 194, 194, 255, 238, 238, 238, 255]);
+  const t = new THREE.DataTexture(d, 5, 1, THREE.RGBAFormat);
   t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
   return t;
 })();
@@ -36,6 +36,7 @@ function outline(mesh, sx, sy, sz) {
 function bx(par, w, h, d, col, x, y, z, opt) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M3(col, opt));
   m.position.set(x, y, z);
+  m.castShadow = !(opt && opt.transparent); m.receiveShadow = true;
   if (!opt || !opt.transparent) outline(m, 1 + 2.4 / w, 1 + 2.4 / h, 1 + 2.4 / d);
   par.add(m); return m;
 }
@@ -46,6 +47,7 @@ function cy(par, r, h, col, x, y, z, axis, seg, r2) {
   m.position.set(x, y, z);
   if (axis === 'x') m.rotation.z = Math.PI / 2;
   if (axis === 'z') m.rotation.x = Math.PI / 2;
+  m.castShadow = m.receiveShadow = true;
   outline(m, 1 + 1.3 / r, 1 + 2.4 / h, 1 + 1.3 / r);
   par.add(m); return m;
 }
@@ -61,11 +63,105 @@ function tube(par, pts, r, col, joints) {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 10), M3(col));
     m.position.copy(a).add(b).multiplyScalar(0.5);
     m.quaternion.setFromUnitVectors(_up, b.clone().sub(a).normalize());
+    m.castShadow = m.receiveShadow = true;
     outline(m, 1 + 1.3 / r, 1 + 0.5 / L, 1 + 1.3 / r);
     par.add(m);
     if (joints !== false && i > 0) sph(par, r, col, ...pts[i]);
   }
 }
+
+/* ---------- lotes: muchas piezas fijas en pocas llamadas de dibujo ---------- */
+function mergeGeos(list) {
+  let n = 0;
+  const parts = list.map(g => { const ng = g.index ? g.toNonIndexed() : g; n += ng.attributes.position.count; return ng; });
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+  let o = 0;
+  for (const g of parts) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.computeBoundingSphere(); out.computeBoundingBox();
+  return out;
+}
+const _m4 = typeof THREE !== 'undefined' ? new THREE.Matrix4() : null;
+const _q = typeof THREE !== 'undefined' ? new THREE.Quaternion() : null;
+const _e = typeof THREE !== 'undefined' ? new THREE.Euler() : null;
+class Batch {
+  constructor() { this.cols = {}; this.outs = []; }
+  _add(geo, col, og, x, y, z, rx, ry, rz) {
+    _e.set(rx || 0, ry || 0, rz || 0); _q.setFromEuler(_e);
+    _m4.compose(new THREE.Vector3(x, y, z), _q, new THREE.Vector3(1, 1, 1));
+    geo.applyMatrix4(_m4); (this.cols[col] = this.cols[col] || []).push(geo);
+    if (og) { og.applyMatrix4(_m4); this.outs.push(og); }
+  }
+  // caja por esquina inferior
+  box(x0, y0, z0, w, h, d, col, o) {
+    o = o || {};
+    this._add(new THREE.BoxGeometry(w, h, d), col, o.ol === false ? null : new THREE.BoxGeometry(w + 2.4, h + 2.4, d + 2.4), x0 + w / 2, y0 + h / 2, z0 + d / 2, o.rx, o.ry, o.rz);
+  }
+  // caja por centro
+  boxc(x, y, z, w, h, d, col, o) { o = o || {}; this._add(new THREE.BoxGeometry(w, h, d), col, o.ol === false ? null : new THREE.BoxGeometry(w + 2.4, h + 2.4, d + 2.4), x, y, z, o.rx, o.ry, o.rz); }
+  cyl(r, h, col, x, y, z, axis, o) {
+    o = o || {};
+    const seg = o.seg || 14;
+    const rx = axis === 'z' ? Math.PI / 2 : (o.rx || 0), rz = axis === 'x' ? Math.PI / 2 : (o.rz || 0);
+    this._add(new THREE.CylinderGeometry(o.r2 === undefined ? r : o.r2, r, h, seg), col, o.ol === false ? null : new THREE.CylinderGeometry((o.r2 === undefined ? r : o.r2) + 1.2, r + 1.2, h + 2.4, seg), x, y, z, rx, o.ry || 0, rz);
+  }
+  tube(pts, r, col, o) {
+    o = o || {};
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = new THREE.Vector3(...pts[i]), b = new THREE.Vector3(...pts[i + 1]);
+      const L = a.distanceTo(b); if (L < 0.01) continue;
+      const g = new THREE.CylinderGeometry(r, r, L, 8), og = o.ol === false ? null : new THREE.CylinderGeometry(r + 1.2, r + 1.2, L + 0.6, 8);
+      _q.setFromUnitVectors(_up, b.clone().sub(a).normalize());
+      _m4.compose(a.clone().add(b).multiplyScalar(0.5), _q, new THREE.Vector3(1, 1, 1));
+      g.applyMatrix4(_m4); (this.cols[col] = this.cols[col] || []).push(g);
+      if (og) { og.applyMatrix4(_m4); this.outs.push(og); }
+    }
+  }
+  build(par, slot) {
+    const made = [];
+    for (const col in this.cols) {
+      const glass = col.startsWith('G:');
+      const mat = glass ? M3(col.slice(2), { transparent: true, opacity: 0.42 }) : col.startsWith('E:') ? new THREE.MeshBasicMaterial({ color: col.slice(2) }) : M3(col);
+      const m = new THREE.Mesh(mergeGeos(this.cols[col]), mat);
+      m.castShadow = !glass; m.receiveShadow = !glass;
+      if (slot !== undefined) m.userData.slot = slot;
+      par.add(m); made.push(m);
+    }
+    if (this.outs.length) {
+      const o = new THREE.Mesh(mergeGeos(this.outs), OUT); o.userData.outline = true; o.raycast = () => {};
+      par.add(o);
+    }
+    this.cols = {}; this.outs = [];
+    return made;
+  }
+}
+
+/* ---------- partículas (vapor, humo, goteo, chispas del escape) ---------- */
+const FX3 = { pool: [], scene: null };
+function fx3(scene, x, y, z, vx, vy, vz, life, col, size, grow) {
+  let p = FX3.pool.find(q => !q.alive && q.scene === scene);
+  if (!p) {
+    if (FX3.pool.length > 160) return;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, depthWrite: false }));
+    p = { m, scene }; scene.add(m); FX3.pool.push(p);
+  }
+  Object.assign(p, { alive: true, x, y, z, vx, vy, vz, life, t: 0, size, grow: grow || 0 });
+  p.m.material.color.set(col); p.m.visible = true;
+}
+function stepFx3(dt) {
+  for (const p of FX3.pool) {
+    if (!p.alive) continue;
+    p.t += dt;
+    if (p.t >= p.life) { p.alive = false; p.m.visible = false; continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+    const k = p.t / p.life, s = p.size * (1 + p.grow * k);
+    p.m.position.set(p.x, p.y, p.z); p.m.scale.set(s, s, s);
+    p.m.material.opacity = 0.85 * (1 - k);
+  }
+}
+
 function tag(g, id) { g.traverse(o => { if (o.isMesh && !o.userData.outline) o.userData.slot = id; }); return g; }
 
 /* ---------- inicio ---------- */
@@ -77,13 +173,19 @@ function init3D(canvas) {
   } catch (e) { return false; }
   R3.renderer.setPixelRatio(1);
   R3.renderer.setClearColor(0x16181d);
+  R3.renderer.shadowMap.enabled = true;
+  R3.renderer.shadowMap.type = THREE.PCFShadowMap;
   OUT = new THREE.MeshBasicMaterial({ color: 0x0b0c10, side: THREE.BackSide });
   OUT_SEL = new THREE.MeshBasicMaterial({ color: 0xf0b429, side: THREE.BackSide });
   const sc = new THREE.Scene();
   sc.fog = new THREE.Fog(0x16181d, 1400, 2600);
-  sc.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3226, 0.7));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.6); sun.position.set(220, 600, 380); sc.add(sun);
-  const fill = new THREE.DirectionalLight(0xffe2b8, 0.25); fill.position.set(-400, -200, 300); sc.add(fill);
+  sc.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a3226, 0.55));
+  const sun = new THREE.DirectionalLight(0xfff4e2, 0.75); sun.position.set(420, 980, 620);
+  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0006;
+  Object.assign(sun.shadow.camera, { left: -900, right: 900, top: 900, bottom: -900, near: 200, far: 3200 });
+  sun.target.position.set(160, -120, -120); sc.add(sun.target); sc.add(sun);
+  const fill = new THREE.DirectionalLight(0xffd9a8, 0.22); fill.position.set(-400, -200, 300); sc.add(fill);
+  const lamp = new THREE.PointLight(0xfff1d0, 0.45, 900, 1.6); lamp.position.set(160, 320, 120); sc.add(lamp);
   R3.scene = sc;
   R3.cam = new THREE.PerspectiveCamera(40, 4 / 3, 5, 5000);
   buildShop(sc);
@@ -95,26 +197,79 @@ function init3D(canvas) {
 
 function buildShop(sc) {
   const g = new THREE.Group();
-  const floorY = -232;
-  bxr(g, -900, floorY - 10, -1400, 2100, 10, 2600, '#4a4e57');
-  for (let z = -1300; z < 1200; z += 160) bxr(g, -900, floorY, z, 2100, 0.6, 2, '#3c4048');
-  bxr(g, -260, floorY + 0.5, -900, 8, 0.6, 1300, '#f0b429'); bxr(g, 572, floorY + 0.5, -900, 8, 0.6, 1300, '#f0b429');
-  // pared del fondo y herramientas
-  bxr(g, -900, floorY, -1400, 2100, 700, 12, '#5d6370');
-  bxr(g, -500, floorY + 260, -1386, 700, 220, 6, '#8a6a42');
-  for (let i = 0; i < 9; i++) bxr(g, -460 + i * 74, floorY + 300 + (i % 3) * 40, -1378, 10, 70, 6, i % 2 ? '#a3abb6' : '#d8443a');
-  // caja de herramientas roja
-  bxr(g, 620, floorY, -500, 160, 220, 110, '#b8322a');
-  for (let i = 0; i < 5; i++) bxr(g, 626, floorY + 30 + i * 38, -392, 148, 6, 4, '#7c1f19');
-  // elevador: postes
-  for (const x of [-140, 460]) { bxr(g, x - 20, floorY, 40, 40, 520, 40, '#2e5f9e'); bxr(g, x - 30, floorY, 30, 60, 10, 60, '#1d3e69'); }
-  // lámparas
-  for (const z of [-300, 200]) bxr(g, 0, 380, z, 320, 8, 30, '#e6e9ed');
+  const B = new Batch();
+  const F = -232;
+  // piso de concreto con juntas, manchas y líneas
+  B.box(-1100, F - 10, -1500, 2500, 10, 2900, '#555a63', { ol: false });
+  for (let z = -1500; z < 1400; z += 220) B.box(-1100, F, z, 2500, 0.5, 3, '#474b53', { ol: false });
+  for (let x = -1100; x < 1400; x += 220) B.box(x, F, -1500, 3, 0.5, 2900, '#474b53', { ol: false });
+  for (const [x, z, r] of [[90, 40, 60], [260, -260, 40], [-40, -520, 70], [520, 180, 35], [180, 320, 45]]) B.cyl(r, 0.6, '#3d3f44', x, F + 0.6, z, 'y', { ol: false, seg: 10 });
+  B.box(-300, F + 0.5, -950, 10, 0.6, 1450, '#f0b429', { ol: false }); B.box(610, F + 0.5, -950, 10, 0.6, 1450, '#f0b429', { ol: false });
+  for (let x = -300; x < 620; x += 60) B.box(x, F + 0.5, 495, 30, 0.6, 10, '#f0b429', { ol: false, ry: 0.5 });
+  // pared trasera, zoclo, tablero de herramientas, repisas
+  B.box(-1100, F, -1500, 2500, 760, 14, '#6a707c');
+  B.box(-1100, F, -1486, 2500, 40, 6, '#3a3d44');
+  B.box(-560, F + 250, -1484, 640, 240, 6, '#9a7a4e');
+  for (let i = 0; i < 12; i++) {
+    const x = -540 + i * 52, y = F + 300 + (i % 3) * 52;
+    if (i % 3 === 0) { B.box(x, y, -1478, 34, 8, 4, '#a3abb6', { ol: false }); B.box(x + 26, y - 14, -1478, 8, 22, 4, '#a3abb6', { ol: false }); }
+    else if (i % 3 === 1) { B.box(x + 12, y - 20, -1478, 6, 48, 4, '#d8443a', { ol: false }); B.box(x + 8, y + 22, -1478, 14, 8, 4, '#d3d8de', { ol: false }); }
+    else { B.box(x + 4, y - 10, -1478, 26, 26, 4, '#2e5f9e', { ol: false }); B.box(x + 10, y - 4, -1476, 14, 14, 4, '#9a7a4e', { ol: false }); }
+  }
+  for (let s = 0; s < 3; s++) {
+    B.box(140, F + 200 + s * 120, -1480, 420, 8, 60, '#7d6447');
+    for (let k = 0; k < 9; k++) B.box(150 + k * 45, F + 208 + s * 120, -1468, 26, 40 + (k % 2) * 12, 26, k % 3 === 0 ? '#f0b429' : k % 3 === 1 ? '#3fb8a6' : '#d8443a');
+  }
+  B.box(-900, F + 540, -1484, 120, 160, 4, '#e6e9ed'); B.box(-890, F + 550, -1482, 100, 90, 4, '#d8443a', { ol: false });
+  B.box(700, F + 520, -1484, 90, 90, 4, '#e6e9ed'); B.box(744, F + 560, -1481, 4, 34, 2, '#121318', { ol: false });
+  // cortina del taller
+  B.box(-1100, F, -1200, 14, 700, 900, '#8b929c');
+  for (let y = F + 20; y < F + 700; y += 22) B.box(-1088, y, -1190, 3, 4, 880, '#6a727e', { ol: false });
+  // caja de herramientas roja con cajones
+  B.box(700, F, -560, 180, 230, 120, '#b8322a');
+  for (let i = 0; i < 6; i++) { B.box(706, F + 22 + i * 34, -442, 168, 4, 4, '#7c1f19', { ol: false }); B.box(770, F + 34 + i * 34, -441, 40, 4, 4, '#d3d8de', { ol: false }); }
+  for (const [x, z] of [[710, -550], [870, -550], [710, -450], [870, -450]]) B.cyl(8, 10, '#121318', x, F + 5, z, 'x');
+  // banco de trabajo con prensa
+  B.box(-900, F + 180, -700, 300, 14, 140, '#9a7a4e');
+  for (const [x, z] of [[-890, -690], [-620, -690], [-890, -580], [-620, -580]]) B.box(x, F, z, 12, 180, 12, '#3b414c');
+  B.box(-860, F + 194, -660, 50, 30, 36, '#2e5f9e'); B.box(-870, F + 210, -650, 70, 8, 16, '#5b6473');
+  // llantas apiladas y tambos
+  for (let i = 0; i < 4; i++) B.cyl(70, 44, '#1a1b1f', -760, F + 22 + i * 46, 300, 'y', { seg: 18 });
+  for (const [x, z, c] of [[860, 260, '#2e5f9e'], [960, 300, '#d8443a'], [910, 380, '#2e5f9e']]) { B.cyl(55, 170, c, x, F + 85, z, 'y', { seg: 16 }); B.cyl(57, 6, '#121318', x, F + 60, z, 'y', { seg: 16 }); B.cyl(57, 6, '#121318', x, F + 120, z, 'y', { seg: 16 }); }
+  // postes del elevador
+  for (const x of [-170, 490]) { B.box(x - 24, F, 10, 48, 560, 48, '#2e5f9e'); B.box(x - 36, F, 0, 72, 12, 68, '#1d3e69'); B.box(x - 10, F + 30, 58, 20, 500, 4, '#f0b429', { ol: false }); }
+  B.box(-194, F + 548, 10, 708, 18, 30, '#1d3e69');
+  // lámparas fluorescentes
+  for (const z of [-350, 160]) { B.box(-20, 400, z, 360, 10, 40, '#3a3d44'); B.box(-14, 394, z + 6, 348, 6, 28, 'E:#f4f7ff', { ol: false }); }
+  B.build(g);
   sc.add(g);
+  // brazos del elevador (se mueven con el auto)
+  const arms = new THREE.Group();
+  const A = new Batch();
+  for (const x of [-170, 490]) for (const z of [-10, -380]) {
+    const dir = x < 0 ? 1 : -1;
+    A.box(Math.min(x, x + dir * 170), -150 - 22, z - 10, 170, 12, 20, '#2e5f9e');
+    A.cyl(14, 10, '#f0b429', x + dir * 160, -150 - 12, z, 'y');
+  }
+  A.build(arms);
+  sc.add(arms);
+  R3.arms = arms;
+  // pluma para motor
+  const crane = new THREE.Group();
+  const C = new Batch();
+  C.box(-60, F, -60, 380, 14, 24, '#f0b429'); C.box(-60, F, 40, 380, 14, 24, '#f0b429');
+  C.box(280, F, -60, 30, 600, 30, '#f0b429');
+  C.tube([[295, F + 560, -45], [40, F + 620, -45]], 12, '#f0b429');
+  C.tube([[40, F + 620, -45], [40, F + 420, -45]], 2, '#3a3d44', { ol: false });
+  C.box(30, F + 410, -55, 20, 16, 20, '#3a3d44');
+  for (const x of [-50, 300]) for (const z of [-48, 52]) C.cyl(8, 8, '#121318', x, F + 6, z, 'x');
+  C.build(crane);
+  sc.add(crane);
+  R3.crane = crane;
   R3.shop = g;
 }
 
-/* ---------- carrocería ---------- */
+/* ---------- carrocería con arcos, faros, espejos y suspensión ---------- */
 function shade(hex, f) {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.min(255, Math.round(((n >> 16) & 255) * f)), gg = Math.min(255, Math.round(((n >> 8) & 255) * f)), b = Math.min(255, Math.round((n & 255) * f));
@@ -122,72 +277,112 @@ function shade(hex, f) {
 }
 function buildBody(modelId, openBay) {
   const Md = MODELOS[modelId];
-  const col = Md.color, dk = shade(col, 0.7), glass = '#9fc4dd', blk = '#1a1b1f';
+  const col = Md.color, dk = shade(col, 0.72), lt = shade(col, 1.18), blk = '#1a1b1f', chrome = '#d3d8de';
   const g = new THREE.Group();
+  const B = new Batch();
   const shape = Md.shape;
   const len = shape === 'pickup' ? 1020 : shape === 'hatch' ? 820 : 960;
   const rear = 250 - len;
-  const sill = -150, belt = 40;
-  // largueros y piso
-  bxr(g, -30, sill, rear + 40, 380, 20, -80 - rear, '#2a2d33');
-  // costados
-  bxr(g, -42, sill, rear, 14, belt - sill, len - 10, col);
-  bxr(g, 348, sill, rear, 14, belt - sill, len - 10, col);
-  // salpicaderas sobre el cofre
-  bxr(g, -42, belt - 8, 0, 50, 8, 245, col); bxr(g, 312, belt - 8, 0, 50, 8, 245, col);
-  // frente
-  bxr(g, -42, -150, 238, 404, 120, 22, col);
-  bxr(g, 20, -110, 252, 280, 50, 6, blk);
-  for (let x = 30; x < 290; x += 22) bxr(g, x, -104, 255, 12, 38, 3, '#2c2e34');
-  bxr(g, -32, -70, 252, 60, 26, 6, '#fff3c4'); bxr(g, 292, -70, 252, 60, 26, 6, '#fff3c4');
-  bxr(g, -44, -150, 250, 408, 26, 14, '#2a2d33');
-  // torreta y parabrisas
-  bxr(g, -42, -10, -40, 404, 52, 40, blk);
-  const roofH = shape === 'muscle' ? 150 : shape === 'coupe' ? 150 : 175;
-  const cabF = -60, cabR = shape === 'pickup' ? -330 : shape === 'hatch' ? -470 : shape === 'coupe' ? -400 : -440;
-  const ws = bx(g, 380, Math.hypot(roofH - belt, 150), 4, glass, 160, (belt + roofH) / 2, cabF - 75, { transparent: true, opacity: 0.45 });
-  ws.rotation.x = -Math.atan2(150, roofH - belt);
-  const rz0 = cabR + 40, rz1 = cabF - 150;
-  bx(g, 392, 10, Math.max(20, rz1 - rz0), col, 160, roofH + 1, (rz0 + rz1) / 2);
-  // pilares y ventanas laterales
-  for (const x of [-38, 352]) {
-    tube(g, [[x, belt, cabF - 2], [x, roofH, cabF - 150]], 5, dk, false);
-    tube(g, [[x, belt, cabR], [x, roofH, cabR + 40]], 6, dk, false);
-    const w = bx(g, 4, roofH - belt - 12, Math.abs(cabR - cabF) - 110, glass, x + (x < 0 ? -2 : 2), (belt + roofH) / 2, (cabF - 150 + cabR + 40) / 2, { transparent: true, opacity: 0.5 });
+  const sill = -150, belt = 40, fw = 171, rw = rear + 150, ar = 84;
+  // costados con arcos de llanta
+  for (const [x0, w] of [[-42, 14], [348, 14]]) {
+    B.box(x0, sill, rear, w, belt - sill, rw - ar - rear, col);
+    B.box(x0, sill, rw + ar, w, belt - sill, fw - ar - rw - ar, col);
+    B.box(x0, sill, fw + ar, w, belt - sill, 250 - fw - ar, col);
+    B.box(x0, -164 + ar - 6, rw - ar, w, belt - (-164 + ar - 6), ar * 2, col);
+    B.box(x0, -164 + ar - 6, fw - ar, w, belt - (-164 + ar - 6), ar * 2, col);
+    B.box(x0 + (x0 < 0 ? -3 : w), -164 + ar - 10, rw - ar - 6, 3, 8, ar * 2 + 12, blk, { ol: false });
+    B.box(x0 + (x0 < 0 ? -3 : w), -164 + ar - 10, fw - ar - 6, 3, 8, ar * 2 + 12, blk, { ol: false });
+    // líneas de puertas, manijas y estribo
+    const side = x0 < 0 ? x0 - 1 : x0 + w;
+    B.box(side, sill + 6, -60, 1.5, belt - sill - 10, 3, '#121318', { ol: false });
+    B.box(side, sill + 6, -330, 1.5, belt - sill - 10, 3, '#121318', { ol: false });
+    B.box(side + (x0 < 0 ? -2 : 0), 6, -140, 3, 6, 26, chrome, { ol: false });
+    B.box(x0 + (x0 < 0 ? -2 : 0), sill - 2, rw + ar, w + 2, 10, fw - ar - rw - ar, dk);
   }
+  // piso, tanque, eje trasero, escape
+  B.box(-30, sill, rear + 40, 380, 20, -80 - rear, '#2a2d33');
+  B.box(40, sill - 40, rear + 60, 240, 40, 110, '#26282d');
+  if (Md.drive === 'RWD') { B.cyl(9, 384, '#3b414c', 160, -164, rw, 'x'); B.cyl(34, 40, '#3b414c', 160, -164, rw, 'z'); B.tube([[160, -150, rw + 30], [160, -140, -40], [100, -100, 60]], 8, '#3b414c'); }
+  else { B.cyl(10, 380, '#3b414c', 160, -150, rw + 10, 'x'); }
+  for (const x of [-10, 330]) { B.cyl(14, 70, '#d8443a', x, -120, rw, 'y', { seg: 8 }); }
+  B.tube([[250, -128, -40], [250, -130, rear + 40], [250, -126, rear - 12]], 6, '#6a727e');
+  B.cyl(8, 26, chrome, 250, -126, rear - 18, 'z');
+  // frente: defensa, parrilla, faros, placa
+  B.box(-42, -150, 236, 404, 116, 22, col);
+  B.box(-46, -160, 248, 412, 34, 16, blk);
+  B.box(30, -112, 255, 260, 54, 6, '#16171b');
+  for (let y = -104; y < -64; y += 9) B.box(36, y, 259, 248, 3, 3, '#3a3d44', { ol: false });
+  B.box(150, -88, 262, 20, 10, 3, chrome, { ol: false });
+  for (const x of [-34, 296]) { B.box(x, -78, 254, 66, 30, 8, '#dfe6ef'); B.box(x + 6, -72, 260, 54, 18, 3, 'E:#fff6cf', { ol: false }); B.box(x + (x < 0 ? 0 : 50), -96, 256, 16, 10, 5, '#f0a02a', { ol: false }); }
+  B.box(115, -140, 263, 90, 26, 3, '#e6e9ed'); B.box(125, -132, 265, 70, 8, 2, '#2e5f9e', { ol: false });
+  // torreta, parabrisas, techo, pilares, espejos
+  B.box(-42, -10, -40, 404, 52, 40, blk);
+  for (let x = 0; x < 320; x += 20) B.box(x, 42, -36, 12, 2, 30, '#2c2e34', { ol: false });
+  const roofH = shape === 'muscle' || shape === 'coupe' ? 150 : 175;
+  const cabF = -60, cabR = shape === 'pickup' ? -330 : shape === 'hatch' ? -470 : shape === 'coupe' ? -400 : -440;
+  const wsA = Math.atan2(150, roofH - belt), wsL = Math.hypot(roofH - belt, 150);
+  B.boxc(160, (belt + roofH) / 2, cabF - 75, 380, wsL, 4, 'G:#9fc4dd', { ol: false, rx: -wsA });
+  const rz0 = cabR + 40, rz1 = cabF - 150;
+  B.boxc(160, roofH + 1, (rz0 + rz1) / 2, 392, 10, Math.max(20, rz1 - rz0), col);
+  B.boxc(160, roofH + 7, (rz0 + rz1) / 2, 360, 2, Math.max(10, rz1 - rz0 - 20), lt, { ol: false });
+  for (const x of [-38, 352]) {
+    B.tube([[x, belt, cabF - 2], [x, roofH, cabF - 150]], 5, dk);
+    B.tube([[x, belt, cabR], [x, roofH, cabR + 40]], 6, dk);
+    B.boxc(x + (x < 0 ? -2 : 2), (belt + roofH) / 2, (cabF - 150 + cabR + 40) / 2, 3, roofH - belt - 12, Math.abs(cabR - cabF) - 110, 'G:#9fc4dd', { ol: false });
+    B.box(x + (x < 0 ? -36 : 6), belt + 10, cabF - 30, 30, 20, 14, dk);
+    B.box(x + (x < 0 ? -34 : 8), belt + 13, cabF - 33, 26, 14, 3, '#9fc4dd', { ol: false });
+  }
+  // asientos y volante (se ven por los vidrios)
+  for (const x of [40, 210]) { B.box(x, -60, -330, 90, 60, 90, '#26282d'); B.box(x, 0, -340, 90, 120, 20, '#26282d'); }
+  B.cyl(36, 6, '#121318', 85, 60, -200, 'z', { rx: 0.4 });
   // atrás
   if (shape === 'pickup') {
-    bxr(g, -42, sill, rear, 404, 120, 14, col);
-    bxr(g, -36, -30, rear + 14, 392, 10, cabR - rear - 30, '#3a3d45');
+    B.box(-42, sill, rear, 404, 150, 14, col);
+    B.box(-36, -30, rear + 14, 392, 10, cabR - rear - 30, '#3a3d45');
+    B.box(-36, belt - 30, cabR - 4, 392, roofH - belt + 20, 10, col);
+    B.boxc(160, (belt + roofH) / 2 + 20, cabR - 8, 300, 70, 3, 'G:#9fc4dd', { ol: false });
   } else {
     const trunkH = shape === 'hatch' ? roofH - 20 : belt + 20;
-    bxr(g, -42, belt - 10, rear, 404, trunkH - belt + 10, Math.max(20, cabR - rear), col);
-    bxr(g, -42, sill, rear - 8, 404, 70, 14, '#2a2d33');
-    bxr(g, -30, belt - 30, rear - 10, 70, 20, 4, '#d8443a'); bxr(g, 290, belt - 30, rear - 10, 70, 20, 4, '#d8443a');
+    B.box(-42, belt - 10, rear, 404, trunkH - belt + 10, Math.max(20, cabR - rear), col);
+    const rgA = Math.atan2(roofH - trunkH, 120), rgL = Math.hypot(roofH - trunkH, 120);
+    if (shape !== 'hatch') B.boxc(160, (trunkH + roofH) / 2, cabR + 20, 360, rgL, 3, 'G:#9fc4dd', { ol: false, rx: rgA });
+    B.box(-46, sill, rear - 10, 412, 70, 16, blk);
+    for (const x of [-30, 290]) { B.box(x, belt - 34, rear - 12, 70, 26, 4, '#b8322a'); B.box(x + 8, belt - 28, rear - 14, 54, 12, 3, 'E:#ff5a4a', { ol: false }); }
+    B.box(115, -110, rear - 14, 90, 26, 3, '#e6e9ed');
   }
-  if (shape === 'muscle') { bxr(g, 120, belt + 6, rear + 6, 80, 6, 40, blk); }
-  // cofre abierto
+  if (shape === 'muscle') { B.box(110, belt + 4, rear + 6, 100, 8, 30, blk); B.box(-40, -60, 0, 2, 10, 200, '#e6e9ed', { ol: false }); }
+  // cofre abierto o cerrado
   if (openBay) {
     const hood = new THREE.Group();
-    bxr(hood, -40, 0, -6, 400, 240, 8, col);
-    bxr(hood, -30, 10, 3, 380, 220, 3, dk);
+    const H = new Batch();
+    H.box(-40, 0, -6, 400, 240, 8, col);
+    H.box(-30, 12, 3, 380, 214, 3, dk);
+    for (let x = 0; x < 340; x += 60) H.box(x, 20, 6, 8, 200, 4, shade(col, 0.6), { ol: false });
+    H.build(hood);
     hood.position.set(0, belt, -40); hood.rotation.x = -0.32;
     g.add(hood);
-    tube(g, [[20, belt, -30], [20, belt + 200, -100]], 2, '#a3abb6', false);
+    B.tube([[20, belt, -30], [20, belt + 200, -100]], 2, '#a3abb6');
   } else {
-    bxr(g, -36, belt - 4, -40, 392, 8, 290, col);
-    if (shape === 'muscle' || Md.drive === 'RWD') bxr(g, 120, belt + 4, 40, 80, 8, 120, dk);
+    B.box(-36, belt - 4, -40, 392, 8, 290, col);
+    B.box(-36, belt + 4, 200, 392, 2, 46, dk, { ol: false });
+    if (shape === 'muscle' || Md.drive === 'RWD') B.box(110, belt + 4, 40, 100, 10, 130, dk);
   }
-  // ruedas traseras (las delanteras son piezas)
-  for (const x of [-22, 342]) wheel3D(g, x, -164, rear + 150, false);
+  B.build(g);
+  for (const x of [-22, 342]) wheel3D(g, x, -164, rw, false);
   return g;
 }
 function wheel3D(par, x, y, z, front) {
   const w = new THREE.Group();
-  cy(w, 66, 42, '#1a1b1f', 0, 0, 0, 'x', 20);
-  cy(w, 40, 44, '#a3abb6', 0, 0, 0, 'x', 12);
-  cy(w, 16, 46, '#6a727e', 0, 0, 0, 'x', 8);
-  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.78; bx(w, 48, 5, 5, '#d3d8de', 0, Math.sin(a) * 26, Math.cos(a) * 26); }
+  const B = new Batch();
+  B.cyl(66, 40, '#1a1b1f', 0, 0, 0, 'x', { seg: 22 });
+  B.cyl(66.5, 30, '#26272c', 0, 0, 0, 'x', { seg: 22, ol: false });
+  B.cyl(44, 42, '#a3abb6', 0, 0, 0, 'x', { seg: 14 });
+  B.cyl(38, 43, '#6a727e', 0, 0, 0, 'x', { seg: 14, ol: false });
+  B.cyl(14, 46, '#d3d8de', 0, 0, 0, 'x', { seg: 8 });
+  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; B.boxc(0, Math.sin(a) * 25, Math.cos(a) * 25, 44, 7, 22, '#d3d8de', { rx: -a }); }
+  for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5 + 0.6; B.cyl(2.5, 47, '#8b929c', 0, Math.sin(a) * 18, Math.cos(a) * 18, 'x', { ol: false, seg: 6 }); }
+  B.build(w);
   w.position.set(x, y, z);
   par.add(w);
   return w;
@@ -292,50 +487,103 @@ function slotGroup(c, id) {
   return tag(g, id);
 }
 
-/* bloque, múltiples y lo que no se desarma */
+/* bloque, cabeza, múltiples, arnés y lo que no se desarma */
 function engineCore(c) {
   const g = new THREE.Group();
   const e = MOTORES[c.engId];
-  const ST = '#4a515d', AL = '#a3abb6';
-  bxr(g, 100, -60, 44, 152, 100, 106, ST);
-  if (e.layout === 'V') {
-    for (const [z, rx] of [[62, 0.12], [86, -0.12]]) { const b = bxr(g, 118, 30, z, 120, 12, 22, AL); b.rotation.x = rx; }
-    bxr(g, 118, 28, 84, 120, 10, 4, '#2a2d33');
-  } else bxr(g, 118, 30, 62, 120, 12, 46, AL);
-  bxr(g, 108, 30, 28, 140, 16, 18, '#26282d');
-  cy(g, 8, 16, AL, 104, 40, 40, 'x');
-  for (let i = 0; i < e.cyl; i++) { const x = injX(e.cyl, i); bxr(g, x - 4, 26, 44, 8, 12, 8, '#26282d'); }
+  const B = new Batch();
+  const ST = '#4a515d', STD = '#3b414c', AL = '#a3abb6', BK = '#26282d';
+  // bloque con costillas y cabeza
+  B.box(100, -60, 44, 152, 70, 106, ST);
+  for (let x = 112; x < 250; x += 18) { B.box(x, -56, 148.5, 5, 60, 3, STD, { ol: false }); B.box(x, -56, 42.5, 5, 60, 3, STD, { ol: false }); }
+  B.box(104, 10, 48, 144, 22, 98, '#565e6b');
+  B.box(96, -50, 60, 6, 70, 80, STD);
+  // tapa de punterías con tornillos
+  const covers = e.layout === 'V' ? [[62, 22, 0.12], [86, 22, -0.12]] : [[62, 46, 0]];
+  for (const [z, d, rx] of covers) {
+    B.box(118, 32, z, 120, 10, d, AL, { rx });
+    for (let x = 124; x < 236; x += 22) { B.cyl(1.6, 3, '#d3d8de', x, 43, z + 2, 'y', { ol: false, seg: 6 }); B.cyl(1.6, 3, '#d3d8de', x, 43, z + d - 2, 'y', { ol: false, seg: 6 }); }
+  }
+  // múltiple de admisión: pleno + ductos curvos a cada cilindro
+  B.box(108, 34, 26, 140, 16, 18, BK);
+  for (let i = 0; i < e.cyl; i++) { const x = injX(e.cyl, i); B.tube([[x, 42, 30], [x, 44, 40], [x, 34, 48]], 4.5, BK); }
+  B.cyl(8, 16, AL, 104, 40, 40, 'x');
+  B.box(92, 34, 34, 8, 12, 12, '#121318');
+  // arnés de cables con ramales
+  B.tube([[114, 50, 58], [180, 52, 58], [244, 50, 60]], 1.6, '#121318', { ol: false });
+  for (let i = 0; i < e.cyl; i++) { const P = cylPos(e)[i]; B.tube([[P.x, 52, 58], [P.x, 58, P.y + 3]], 1, '#121318', { ol: false }); }
   // escape
   const exCol = '#8a4128';
   const n = Math.min(4, e.cyl);
   for (let i = 0; i < n; i++) {
     const x = 140 + i * 26;
-    tube(g, e.turbo ? [[x, 6, 142], [x + 10, 4, 152], [236, 14, 162]] : [[x, 6, 142], [x + 10, 0, 156], [236, -10, 168]], 3.5, exCol);
+    B.tube(e.turbo ? [[x, 6, 142], [x + 10, 4, 152], [236, 14, 162]] : [[x, 6, 142], [x + 10, 0, 156], [236, -10, 168]], 3.5, exCol);
   }
-  if (!e.turbo) tube(g, [[236, -10, 168], [246, -40, 175], [250, -110, 150]], 6, exCol);
-  else tube(g, [[246, 8, 176], [248, -40, 178], [250, -110, 150]], 6, exCol);
+  if (!e.turbo) B.tube([[236, -10, 168], [246, -40, 175], [250, -110, 150]], 6, exCol);
+  else B.tube([[246, 8, 176], [248, -40, 178], [250, -110, 150]], 6, exCol);
   // poleas
-  for (const [x, z, r] of [[76, 138, 10], [70, 108, 6], [88, 84, 5], [96, 118, 4]]) cy(g, r, 5, '#5b6473', x, 22, z, 'y');
-  // cárter y abajo
-  bxr(g, 108, -100, 58, 104, 40, 84, '#3b414c');
+  for (const [x, z, r] of [[76, 138, 10], [70, 108, 6], [88, 84, 5], [96, 118, 4]]) B.cyl(r, 5, '#5b6473', x, 22, z, 'y', { seg: 12 });
+  // soportes de motor
+  for (const [x, z] of [[100, 60], [252, 60], [176, 150]]) { B.box(x - 10, -40, z - 8, 20, 18, 16, '#121318'); B.box(x - 6, -26, z - 4, 12, 8, 8, '#8b929c', { ol: false }); }
+  // cárter con aletas
+  B.box(108, -100, 58, 104, 40, 84, '#3b414c');
+  for (let x = 114; x < 210; x += 10) B.box(x, -104, 64, 3, 6, 72, '#2a2d33', { ol: false });
+  B.build(g);
+  // poleas que giran
+  const pul = new THREE.Group(); pul.position.set(76, 22, 138);
+  const P2 = new Batch(); P2.cyl(11, 6, '#7d8591', 0, 0, 0, 'y', { seg: 12 }); for (let k = 0; k < 4; k++) P2.boxc(Math.cos(k * 1.57) * 6, 3.5, Math.sin(k * 1.57) * 6, 3, 2, 3, '#2a2d33', { ol: false }); P2.build(pul);
+  g.add(pul); R3.dyn.crankPulley = pul;
   return g;
 }
 function chassisFixed(c) {
   const g = new THREE.Group();
-  // piso de la bahía, radiador, intercooler, caja de fusibles y del filtro
-  bxr(g, -28, -64, -2, 376, 4, 248, '#1c1f25');
-  bxr(g, 16, -56, 196, 298, 56, 12, '#1d1e22');
-  for (let x = 20; x < 310; x += 6) bxr(g, x, -50, 207.5, 2, 44, 1, '#34363d');
-  if (hasTurbo(c)) { bxr(g, 28, -50, 210, 268, 40, 22, '#a3abb6'); for (let x = 32; x < 292; x += 5) bxr(g, x, -46, 231.5, 1.5, 32, 1, '#6a727e'); }
-  bxr(g, 6, -12, 66, 32, 22, 20, '#1d1e22');
-  bxr(g, 262, -12, 16, 52, 38, 46, '#1d1e22');
-  // escape trasero
-  tube(g, [[250, -112, 150], [250, -118, 40], [250, -120, -650]], 6, '#6a727e', true);
-  bxr(g, 238, -128, 60, 24, 20, 50, '#3b414c');
-  // subchasís
-  bxr(g, 40, -140, 116, 240, 8, 12, '#2a2d33');
+  const B = new Batch();
+  // piso de la bahía y estructura
+  B.box(-28, -64, -2, 376, 4, 248, '#1c1f25', { ol: false });
+  B.box(-28, -150, 0, 18, 30, 250, '#2a2d33'); B.box(330, -150, 0, 18, 30, 250, '#2a2d33');
+  // torres de suspensión
+  for (const x of [-14, 334]) { B.cyl(22, 70, '#2a2d33', x, 4, 171, 'y'); B.cyl(14, 6, '#4a515d', x, 42, 171, 'y'); for (let k = 0; k < 3; k++) B.cyl(2, 6, '#d3d8de', x + Math.cos(k * 2.1) * 9, 45, 171 + Math.sin(k * 2.1) * 9, 'y', { ol: false, seg: 6 }); }
+  // radiador, intercooler
+  B.box(16, -56, 196, 298, 56, 12, '#1d1e22');
+  for (let x = 20; x < 310; x += 6) B.box(x, -50, 207.5, 2, 44, 1, '#34363d', { ol: false });
+  if (hasTurbo(c)) { B.box(28, -50, 210, 268, 40, 22, '#a3abb6'); for (let x = 32; x < 292; x += 5) B.box(x, -46, 231.5, 1.5, 32, 1, '#6a727e', { ol: false }); }
+  // cubierta del ventilador
+  B.box(150, -58, 182, 100, 60, 8, '#121318');
+  // caja de fusibles y del filtro
+  B.box(6, -12, 66, 32, 22, 20, '#1d1e22');
+  B.box(262, -12, 16, 52, 38, 46, '#1d1e22');
+  // servofreno y bomba de frenos
+  B.cyl(30, 22, '#121318', 70, 4, 10, 'z');
+  B.cyl(8, 30, '#8b929c', 70, 6, 30, 'z');
+  B.box(62, 14, 26, 16, 12, 14, 'G:#e8dca0', { ol: false });
+  // depósito de anticongelante
+  B.box(272, -14, 118, 30, 38, 30, 'G:#e6e9ed', { ol: false });
+  B.box(280, 24, 126, 14, 6, 14, '#121318');
+  // escape trasero, convertidor, colgantes
+  B.tube([[250, -112, 150], [250, -118, 40], [250, -120, -650]], 6, '#6a727e');
+  B.box(238, -130, 60, 24, 22, 50, '#3b414c');
+  for (const z of [-200, -450]) B.box(246, -110, z, 8, 8, 8, '#121318', { ol: false });
+  // subchasís, cremallera, brazos y flechas
+  B.box(40, -140, 116, 240, 8, 14, '#2a2d33');
+  B.cyl(6, 240, '#5b6473', 160, -120, 158, 'x');
+  for (const s of [-1, 1]) {
+    const xw = s < 0 ? -10 : 330, xr = s < 0 ? 40 : 280;
+    B.tube([[xr, -120, 158], [xw, -140, 178]], 3, '#8b929c');
+    B.tube([[xr, -148, 130], [xw, -164, 171], [xr, -148, 196]], 4, '#2a2d33');
+    B.cyl(42, 4, '#7d8591', xw + (s < 0 ? 14 : -14), -164, 171, 'x', { seg: 18 });
+    B.cyl(10, 70, '#d8443a', xw, -120, 171, 'y', { seg: 8 });
+  }
+  if (c.caja && MODELOS[c.model].drive === 'FWD') for (const xw of [-4, 324]) B.tube([[100, -82, 100], [xw, -164, 171]], 5, '#3b414c');
+  B.build(g);
+  // líquido del depósito y ventilador
+  const lvl = new THREE.Mesh(new THREE.BoxGeometry(26, 1, 26), M3('#3fb8a6'));
+  lvl.position.set(287, -14, 133); g.add(lvl); R3.dyn.coolant = lvl;
+  const fan = new THREE.Group(); fan.position.set(200, -28, 186);
+  const FB = new Batch(); for (let k = 0; k < 6; k++) FB.boxc(Math.cos(k * 1.047) * 13, Math.sin(k * 1.047) * 13, 0, 22, 8, 2, '#2a2d33', { rz: k * 1.047 + 0.3 }); FB.cyl(5, 6, '#121318', 0, 0, 0, 'z'); FB.build(fan);
+  g.add(fan); R3.dyn.fan = fan;
   return g;
 }
+
 function gearbox3D(c) {
   const g = new THREE.Group();
   if (c.caja) {
@@ -490,6 +738,23 @@ function frame3D(g, dt) {
     R3.engGroup.position.set(j, Math.abs(j) * 0.4, 0);
   }
   if (R3.dyn.compWheel) R3.dyn.compWheel.rotation.z += Math.min(0.9, s.wt * dt * 0.02);
+  if (R3.dyn.fan && s.fanOn) R3.dyn.fan.rotation.z += dt * 22;
+  if (R3.dyn.crankPulley) R3.dyn.crankPulley.rotation.y += Math.min(0.7, s.om * dt);
+  if (R3.dyn.coolant) { R3.dyn.coolant.position.y = -12 + 30 * Math.min(1.05, c.cool.level); R3.dyn.coolant.visible = c.cool.level > 0.03; }
+  if (R3.arms) R3.arms.position.y = R3.lift;
+  if (R3.crane) {
+    R3.crane.visible = G.upg && G.upg.has('pluma');
+    const over = c.proc && /Motor/.test(c.proc.type);
+    const tx = over ? 136 : 760, tz = over ? 150 : -260;
+    R3.crane.position.x += (tx - R3.crane.position.x) * Math.min(1, dt * 2);
+    R3.crane.position.z += (tz - R3.crane.position.z) * Math.min(1, dt * 2);
+  }
+  // partículas: vapor del radiador y chorro de aceite al drenar
+  const L = R3.lift;
+  if (c.engId && (s.ECT > 118 || (!has(c, 'tapaRad') && s.ECT > 96)) && Math.random() < dt * 25) fx3(R3.scene, 306 + (Math.random() - 0.5) * 8, 8 + L, 198, (Math.random() - 0.5) * 20, 70 + Math.random() * 40, (Math.random() - 0.5) * 20, 1.4, '#e8edf2', 6, 3);
+  if (c.engId && !has(c, 'tapon') && c.oil.level > 0.12 && Math.random() < dt * 40) fx3(R3.scene, 160 + (Math.random() - 0.5) * 3, -106 + L, 132, 0, -160, 0, (L + 120) / 160 / 1.4, c.oil.quality < 0.5 ? '#3a2e10' : '#d4a21f', 3, 0);
+  if (c.engId && s.running && c.smokeOut !== false && (s.smoke.b > 0.2 || s.smoke.k > 0.25 || s.smoke.w > 0.2) && Math.random() < dt * 20) fx3(R3.scene, 250, -126 + L, 250 - (MODELOS[c.model].shape === 'pickup' ? 1020 : MODELOS[c.model].shape === 'hatch' ? 820 : 960) - 20, (Math.random() - 0.5) * 30, 20, -60, 2.2, s.smoke.b > 0.2 ? '#8fa8d8' : s.smoke.k > 0.25 ? '#2a2a2e' : '#eef2f5', 10, 4);
+  stepFx3(dt);
   if (R3.dyn.turbHousing) { const t = (s.Tt - 650) / 450; R3.dyn.turbHousing.material = M3(t > 0.5 ? '#e2702b' : t > 0 ? '#a33a1f' : '#8a4128'); }
   // cámara
   const o = R3.orbit;

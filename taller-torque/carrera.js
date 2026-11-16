@@ -12,26 +12,42 @@ const RACE = { built: false, state: 'menu', rival: -1, t: 0, gear: 0, shiftT: 0,
 function buildRace() {
   if (RACE.built || !R3.ok) return;
   const sc = new THREE.Scene();
-  sc.background = new THREE.Color(0x8fb6d8);
-  sc.fog = new THREE.Fog(0x8fb6d8, 6000, 30000);
-  sc.add(new THREE.HemisphereLight(0xeaf3ff, 0x5b5040, 0.85));
-  const sun = new THREE.DirectionalLight(0xfff1d6, 0.8); sun.position.set(-600, 1200, 400); sc.add(sun);
+  sc.background = new THREE.Color(0x9cc3e4);
+  sc.fog = new THREE.Fog(0x9cc3e4, 7000, 32000);
+  sc.add(new THREE.HemisphereLight(0xeaf3ff, 0x5b5040, 0.7));
+  const sun = new THREE.DirectionalLight(0xfff1d6, 0.85); sun.position.set(-700, 1400, 500);
+  sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); sun.shadow.bias = -0.0006;
+  Object.assign(sun.shadow.camera, { left: -1500, right: 1500, top: 1500, bottom: -1500, near: 100, far: 4000 });
+  sc.add(sun); sc.add(sun.target); RACE.sun = sun;
   const g = new THREE.Group();
-  bxr(g, -6000, -240, -3000, 12000, 6, 100000, '#6b8f4e');
-  bxr(g, -820, -236, -3000, 1640, 4, 100000, '#3a3d44');
-  for (let z = -2000; z < 92000; z += 1400) bxr(g, -8, -231.5, z, 16, 0.5, 700, '#e6e9ed');
-  for (const x of [-820, 804]) bxr(g, x, -231.5, -3000, 16, 0.5, 100000, '#f0b429');
-  // línea de salida y meta
-  bxr(g, -820, -231.4, 250, 1640, 0.6, 30, '#e6e9ed');
+  const B = new Batch();
+  B.box(-9000, -240, -4000, 18000, 6, 100000, '#6b8f4e', { ol: false });
+  B.box(-820, -236, -4000, 1640, 4, 100000, '#3a3d44', { ol: false });
+  for (let z = -2000; z < 92000; z += 1400) B.box(-8, -231.5, z, 16, 0.5, 700, '#e6e9ed', { ol: false });
+  for (const x of [-820, 804]) B.box(x, -231.5, -4000, 16, 0.5, 100000, '#f0b429', { ol: false });
+  for (const x of [-860, 820]) for (let z = -3000; z < 92000; z += 600) B.box(x, -236, z, 40, 60, 560, z % 1200 ? '#e6e9ed' : '#d8443a');
+  // marcas de llanta en la salida
+  for (const x of [-560 + 30, -560 + 290, 240 + 30, 240 + 290]) B.box(x - 18, -231.3, 300, 36, 0.4, 2400, '#26282c', { ol: false });
+  B.box(-820, -231.4, 250, 1640, 0.6, 30, '#e6e9ed', { ol: false });
   const fin = QM * U + 250;
-  for (let i = 0; i < 16; i++) bxr(g, -820 + i * 102.5, -231.4, fin, 102.5, 0.6, 60, i % 2 ? '#121318' : '#e6e9ed');
-  bxr(g, -900, -232, fin - 20, 40, 900, 40, '#d8443a'); bxr(g, 860, -232, fin - 20, 40, 900, 40, '#d8443a');
-  bxr(g, -900, 640, fin - 20, 1800, 120, 30, '#e6e9ed');
-  // gradas y postes
+  for (let i = 0; i < 16; i++) B.box(-820 + i * 102.5, -231.4, fin, 102.5, 0.6, 60, i % 2 ? '#121318' : '#e6e9ed', { ol: false });
+  B.box(-940, -232, fin - 20, 40, 900, 40, '#d8443a'); B.box(900, -232, fin - 20, 40, 900, 40, '#d8443a');
+  B.box(-940, 640, fin - 20, 1880, 120, 30, '#e6e9ed');
+  // gradas con público, edificios y postes
+  const crowd = ['#d8443a', '#3d7ccf', '#f0b429', '#e6e9ed', '#5aa65b', '#7a3fb0', '#e0a77a'];
   for (let z = -1500; z < 92000; z += 5200) {
-    for (const x of [-1700, 1100]) { bxr(g, x, -232, z, 600, 120, 1200, '#5d6370'); bxr(g, x + (x < 0 ? 0 : 0), -112, z, 600, 120, 1200 * 0.8, '#7a8190'); }
-    bxr(g, -1000, -232, z + 2600, 20, 700, 20, '#a3abb6'); bxr(g, -1000, 460, z + 2600, 160, 14, 30, '#e6e9ed');
+    for (const side of [-1, 1]) {
+      const x = side < 0 ? -1800 : 1100;
+      for (let r = 0; r < 4; r++) B.box(x + (side < 0 ? r * 120 : 360 - r * 120), -232, z, 140, 40 + r * 50, 1400, r % 2 ? '#7a8190' : '#5d6370');
+      if (z < 20000 || z > 80000) for (let k = 0; k < 40; k++) { const rr = k % 4; B.box(x + (side < 0 ? rr * 120 : 360 - rr * 120) + 40 + (k % 3) * 20, -192 + rr * 50, z + 40 + Math.floor(k / 4) * 130, 18, 34, 18, crowd[k % crowd.length], { ol: false }); }
+      const bx0 = side < 0 ? -4200 : 2500;
+      const h = 600 + ((z / 5200) % 5) * 260;
+      B.box(bx0, -232, z + 200, 1400, h, 1600, ['#8b929c', '#a88a6a', '#6a727e', '#b8a690'][Math.abs(Math.round(z / 5200)) % 4]);
+      for (let wy = -150; wy < -232 + h - 80; wy += 120) for (let wz = z + 300; wz < z + 1700; wz += 220) B.box(side < 0 ? bx0 + 1400 : bx0 - 2, wy, wz, 4, 60, 110, '#2c3e50', { ol: false });
+    }
+    B.box(-1000, -232, z + 2600, 20, 700, 20, '#a3abb6'); B.box(-1000, 460, z + 2600, 160, 14, 30, '#e6e9ed');
   }
+  B.build(g);
   // árbol de luces
   const tree = new THREE.Group();
   bxr(tree, -14, -232, 120, 28, 560, 28, '#2a2d33');
@@ -226,9 +242,19 @@ function frameRace(dt) {
     const t = RACE.state === 'stage' ? RACE.stageT : 9;
     RACE.lights.forEach((L, i) => { const on = i < 3 ? (t >= 1 + i * 0.5 && t < 3) : t >= 3; L.forEach(m => m.material = M3(on ? (i < 3 ? '#f0b429' : '#5aa65b') : '#3a3d44')); });
   }
+  // humo de llantas, flamazos y polvo
+  const pzz = RACE.player.position.z, rearZ = pzz - (MODELOS[G.car.model].shape === 'pickup' ? 770 : MODELOS[G.car.model].shape === 'hatch' ? 570 : 710);
+  const driveZ = MODELOS[G.car.model].drive === 'RWD' ? rearZ + 150 : pzz + 171;
+  if (V.spin && Math.random() < dt * 60) for (const wx of [-22, 342]) fx3(RACE.scene, RACE.player.position.x + wx, -215, driveZ, (Math.random() - 0.5) * 60, 40 + Math.random() * 60, V.v * U * 0.6 - 80, 1.6, '#e8ebee', 22, 4);
+  const s = G.car.sim;
+  if ((s.time - s.popT < 0.08 || (RACE.shiftT > 0 && RACE.shiftT > CAJAS[G.car.caja.id].shift - 0.05)) && Math.random() < 0.7) for (let k = 0; k < 4; k++) fx3(RACE.scene, RACE.player.position.x + 250, -126, rearZ - 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 20, -200 + V.v * U, 0.18, k % 2 ? '#ffb04a' : '#ff5a2a', 10, 1.5);
+  stepFx3(dt);
+  if (RACE.sun) { RACE.sun.position.set(RACE.player.position.x - 700, 1400, pzz + 500); RACE.sun.target.position.set(RACE.player.position.x, -200, pzz); }
   const pz = RACE.player.position.z, px = RACE.player.position.x + 160;
   const shake = V.v > 20 ? (Math.random() - 0.5) * V.v * 0.15 : 0;
-  RACE.cam.position.set(px - 420 + shake, 320 + shake, pz - 1250);
-  RACE.cam.lookAt(px + 60, 40, pz + 900);
+  const fov = 50 + Math.min(14, V.v * 0.25);
+  if (Math.abs(RACE.cam.fov - fov) > 0.2) { RACE.cam.fov = fov; RACE.cam.updateProjectionMatrix(); }
+  RACE.cam.position.set(px - 380 + shake, 300 + shake, pz - 1150 - V.v * 4);
+  RACE.cam.lookAt(px + 160, 20, pz + 900);
   R3.renderer.render(RACE.scene, RACE.cam);
 }
