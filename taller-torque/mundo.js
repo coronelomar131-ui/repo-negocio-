@@ -225,7 +225,7 @@ function mundoAction(which) {
     if (id === 'pista') { toast('Súbete a uno de tus autos y entra manejando por el arco de la pista.', 'info'); }
   }
 }
-function scrollSide() { const s = document.querySelector('.side'); if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function scrollSide() { openSheet(); }
 function enterCar(c) {
   const why = !c.engId ? 'no tiene motor' : !c.caja ? 'no tiene caja' : c.caja.health <= 0 ? 'tiene la caja rota' : (!has(c, 'ruedaI') || !has(c, 'ruedaD')) ? 'le falta una rueda' : c.lift ? 'está en el elevador arriba' : '';
   if (why) { toast(`No se puede manejar: ${why}.`, 'warn'); return; }

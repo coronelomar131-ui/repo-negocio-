@@ -515,6 +515,12 @@ function togglePan() {
   else toast(c.pan ? 'Charola debajo del tapón del cárter.' : 'Charola retirada.', 'info');
   G.view = 'abajo'; syncViews(); refreshAll();
 }
+function openSheet(t) {
+  if (t) setTab(t);
+  $('#sheet').hidden = false;
+  $$('.dbtn').forEach(b => b.classList.toggle('on', b.dataset.sheet === G.tab));
+}
+function closeSheet() { $('#sheet').hidden = true; $$('.dbtn').forEach(b => b.classList.remove('on')); }
 function setTab(t) {
   G.tab = t;
   $$('.tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
@@ -802,7 +808,8 @@ function syncButtons() {
   const c = G.car || { lift: false };
   const pista = G.view === 'pista', mundo = G.view === 'mundo';
   $('#ctlBox').hidden = pista || mundo; $('#raceBox').hidden = !pista; $('#selbar').hidden = pista || mundo; $('.belt-wrap').hidden = pista || mundo;
-  $('#mundoBox').hidden = !mundo; $('#mundoUI').hidden = !mundo;
+  $('#mundoBox').hidden = true; $('#mundoUI').hidden = !mundo;
+  $('#hudDash').hidden = mundo || pista;
   $('.screen').classList.toggle('tall', mundo);
   const td = G.view === 'cofre' || G.view === 'abajo' || G.view === 'banco';
   $('#bDoors').classList.toggle('on', !!(G.car && G.car.open && G.car.open.doors)); $('#bTrunk').classList.toggle('on', !!(G.car && G.car.open && G.car.open.trunk));
@@ -811,7 +818,7 @@ function syncButtons() {
   $('#camHint').hidden = !(td && R3.ok);
   $('#kOff').classList.toggle('on', G.key === 0);
   $('#kOn').classList.toggle('on', G.key >= 1);
-  $('#bLift').textContent = c.lift ? 'Elevador: arriba' : 'Elevador: abajo';
+  $('#bLift').querySelector('span').textContent = c.lift ? 'Bajar' : 'Subir';
   $('#bLift').classList.toggle('on', c.lift);
   $('#bDyno').classList.toggle('on', G.dyno);
   $('#bLabels').classList.toggle('on', G.labels);
@@ -820,6 +827,7 @@ function syncButtons() {
 }
 function syncViews() {
   $$('.vtab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === G.view)));
+  document.body.dataset.view = G.view;
   if (G.view === 'cofre' || G.view === 'abajo' || G.view === 'banco') setView3D(G.view);
   if (G.view !== 'mundo' && typeof MUNDO !== 'undefined' && MUNDO.mode === 'auto') exitCar();
   if (G.view === 'mundo') { G.thr = 0; G.full = false; startMundo(); }
@@ -861,7 +869,7 @@ function onAction(act, el) {
     case 'remove': doRemove(id); break;
     case 'connect': doInstall(id, null); break;
     case 'measure': doMeasure(id); break;
-    case 'details': setTab('pieza'); document.querySelector('.side').scrollIntoView({ behavior: 'smooth', block: 'start' }); break;
+    case 'details': openSheet('pieza'); break;
     case 'install': doInstall(id, Number(el.dataset.uid)); break;
     case 'fill-aceite': addFluid('aceite'); break;
     case 'fill-refrigerante': addFluid('refrigerante'); break;
@@ -1053,14 +1061,17 @@ function startGame(mode) {
   }
   $('#start').hidden = true;
   G.view = 'mundo'; MUNDO.carKey = ''; MUNDO.p = { x: 0, z: 18 * MW, h: Math.PI };
-  syncViews(); refreshAll(); setTab(mode === 'lab' ? 'autos' : 'orden');
+  syncViews(); refreshAll(); setTab(mode === 'lab' ? 'autos' : 'orden'); closeSheet();
   save();
 }
 
 function bind() {
   // vistas
   $$('.vtab').forEach(b => b.onclick = () => { G.view = b.dataset.view; syncViews(); });
-  $$('.tab').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+  $$('.tab').forEach(b => b.onclick = () => { setTab(b.dataset.tab); $$('.dbtn').forEach(x => x.classList.toggle('on', x.dataset.sheet === G.tab)); });
+  $$('.dbtn').forEach(b => b.onclick = () => { if (!$('#sheet').hidden && G.tab === b.dataset.sheet) closeSheet(); else openSheet(b.dataset.sheet); });
+  $('#sheetClose').onclick = closeSheet;
+  $('#hudDash').onclick = e => { if (e.target.closest('canvas')) return; $('#hudDash').classList.toggle('full'); };
   // lienzo
   const cv = $('#cv');
   cv.addEventListener('pointerdown', e => {
@@ -1123,8 +1134,8 @@ function bind() {
     fastCool(G.car, 300); toast(`Pasaron 5 minutos. Motor a ${Math.round(s.ECT)} °C.`, 'info');
   };
   $('#btnSound').onclick = async () => {
-    if (AUDIO.on) { AUDIO.stop(); $('#btnSound').textContent = 'Sonido: no'; $('#btnSound').setAttribute('aria-pressed', 'false'); }
-    else { const ok = await AUDIO.start(); $('#btnSound').textContent = ok ? 'Sonido: sí' : 'Sin sonido'; $('#btnSound').setAttribute('aria-pressed', String(ok)); }
+    if (AUDIO.on) { AUDIO.stop(); $('#btnSound').setAttribute('aria-pressed', 'false'); $('#btnSound').setAttribute('aria-label', 'Sonido apagado'); toast('Sonido apagado', 'info'); }
+    else { const ok = await AUDIO.start(); $('#btnSound').setAttribute('aria-pressed', String(ok)); $('#btnSound').setAttribute('aria-label', ok ? 'Sonido encendido' : 'Sin sonido'); toast(ok ? 'Sonido encendido' : 'Este navegador no permite sonido', 'info'); }
   };
   $('#btnMenu').onclick = () => { $('#start').hidden = false; renderStart(); };
   // torquímetro

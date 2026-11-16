@@ -857,7 +857,7 @@ function resize3D() {
   if (!R3.ok) return;
   const r = R3.canvas.getBoundingClientRect();
   if (!r.width) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, r.width < 600 ? 1.75 : 1.5);
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
   if (R3.w !== w || R3.h !== h) { R3.w = w; R3.h = h; R3.renderer.setSize(w, h, false); R3.cam.aspect = w / h; R3.cam.updateProjectionMatrix(); }
 }
@@ -924,7 +924,8 @@ function frame3D(g, dt) {
   const ty = (R3.view === 'abajo' ? -90 : banco ? -10 : 10) + R3.lift;
   const tgt = new THREE.Vector3(banco ? 176 : 160, ty, banco ? 100 : (R3.focusZ !== undefined && R3.view === 'cofre' ? R3.focusZ : 120));
   const cp = Math.cos(o.pitch);
-  R3.cam.position.set(tgt.x + Math.sin(o.yaw) * cp * o.dist, tgt.y + Math.sin(o.pitch) * o.dist, tgt.z + Math.cos(o.yaw) * cp * o.dist);
+  const dd = o.dist * Math.pow(Math.max(1, 1.1 / (R3.cam.aspect || 1)), 0.75);
+  R3.cam.position.set(tgt.x + Math.sin(o.yaw) * cp * dd, tgt.y + Math.sin(o.pitch) * dd, tgt.z + Math.cos(o.yaw) * cp * dd);
   if (R3.view === 'abajo' && R3.cam.position.y < -225) R3.cam.position.y = -225;
   R3.cam.lookAt(tgt);
   if (R3.pan) { R3.pan.position.x = 0; if (R3.panOil) { const lv = Math.min(1, c.oil.pan / 5); R3.panOil.scale.y = 1; R3.panOil.position.y = 2 + lv * 9; R3.panOil.visible = lv > 0.01; } }
