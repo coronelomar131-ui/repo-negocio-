@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taller Torque</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Simulador de taller mecánico en pixel art: motor 1.6 turbo con física real, herramientas, aprietes, escáner OBD-II y fallas de verdad.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Silkscreen:wght@400;700&display=swap">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand" aria-label="Taller Torque">
+      <span class="brand-a">TALLER</span><span class="brand-b">TORQUE</span>
+    </div>
+    <dl class="stats">
+      <div class="stat"><dt>Caja</dt><dd id="sMoney">$0</dd></div>
+      <div class="stat"><dt>Reputación</dt><dd id="sRep">☆☆☆☆☆</dd></div>
+      <div class="stat"><dt>Trabajo</dt><dd id="sJob">—</dd></div>
+    </dl>
+    <div class="top-actions">
+      <button id="btnSound" class="btn sm" aria-pressed="false">Sonido: no</button>
+      <button id="btnMenu" class="btn sm">Menú</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="stage" aria-label="Auto en el taller">
+      <nav class="views" role="tablist" aria-label="Vista">
+        <button class="vtab" role="tab" data-view="cofre" aria-selected="true">Cofre</button>
+        <button class="vtab" role="tab" data-view="abajo" aria-selected="false">Abajo</button>
+        <button class="vtab" role="tab" data-view="corte" aria-selected="false">En corte</button>
+      </nav>
+      <div class="screen">
+        <canvas id="cv" width="960" height="720" aria-label="Motor del auto. Toca una pieza para seleccionarla."></canvas>
+        <div id="caption" class="caption" hidden></div>
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      </div>
+      <div id="selbar" class="selbar"></div>
+      <div class="belt-wrap"><div id="belt" class="belt" aria-label="Caja de herramientas"></div></div>
+
+      <div class="controls">
+        <div class="ctl key" role="group" aria-label="Llave">
+          <span class="ctl-k">Llave</span>
+          <button id="kOff" class="btn">Apagar</button>
+          <button id="kOn" class="btn">Contacto</button>
+          <button id="kStart" class="btn hold">Marcha<small>mantén</small></button>
+        </div>
+        <div class="ctl thr">
+          <label class="ctl-k" for="thr">Acelerador <output id="thrV">0%</output></label>
+          <input id="thr" type="range" min="0" max="100" value="0">
+          <button id="kFull" class="btn hold">A fondo<small>mantén</small></button>
+        </div>
+        <div class="ctl misc">
+          <button id="bLift" class="btn">Elevador: abajo</button>
+          <button id="bDyno" class="btn">Dinamómetro</button>
+          <button id="bWait" class="btn">Esperar 5 min</button>
+          <button id="bLabels" class="btn on">Etiquetas</button>
+        </div>
+        <div class="ctl lab" id="labBox" hidden>
+          <label class="ctl-k" for="wgSpring">Resorte de wastegate <output id="wgV">0.70 bar</output></label>
+          <input id="wgSpring" type="range" min="30" max="140" value="70">
+        </div>
+      </div>
+
+      <div class="dashwrap">
+        <div class="lights" id="lights" aria-label="Testigos del tablero"></div>
+        <div class="dash" id="dash" aria-label="Instrumentos del taller"></div>
+        <div class="dyno" id="dynoBox" hidden>
+          <div class="dyno-h"><span class="sw t">Torque N·m</span><span class="sw p">Potencia hp</span></div>
+          <canvas id="dynoCv" width="560" height="180" aria-label="Curva del dinamómetro"></canvas>
+          <p id="dynoPeak" class="dyno-p"></p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="Taller">
+      <nav class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="orden" aria-selected="false">Orden</button>
+        <button class="tab" role="tab" data-tab="pieza" aria-selected="true">Pieza</button>
+        <button class="tab" role="tab" data-tab="banco" aria-selected="false">Banco</button>
+        <button class="tab" role="tab" data-tab="tienda" aria-selected="false">Tienda</button>
+        <button class="tab" role="tab" data-tab="escaner" aria-selected="false">Escáner</button>
+      </nav>
+      <section id="p-orden" class="panel" hidden></section>
+      <section id="p-pieza" class="panel"></section>
+      <section id="p-banco" class="panel" hidden></section>
+      <section id="p-tienda" class="panel" hidden></section>
+      <section id="p-escaner" class="panel" hidden></section>
+    </aside>
+  </main>
+
+  <div id="torque" class="modal" hidden>
+    <div class="modal-card tq" role="dialog" aria-modal="true" aria-labelledby="tqTitle">
+      <h2 id="tqTitle" class="m-title">Apretar</h2>
+      <p id="tqSpec" class="m-lead"></p>
+      <div class="tq-body">
+        <div class="tq-pad">
+          <canvas id="tqCv" width="160" height="160" aria-label="Tornillos: toca uno para elegirlo"></canvas>
+          <span id="tqClick" class="tq-click" aria-hidden="true">¡CLIC!</span>
+        </div>
+        <div class="tq-side">
+          <output id="tqRead" class="tq-read">Sin apretar</output>
+          <div class="tq-meter"><i id="tqBar" data-zone="na"></i></div>
+          <button id="tqPress" class="btn primary big hold">APRETAR<small>mantén</small></button>
+        </div>
+      </div>
+      <p id="tqHint" class="muted"></p>
+      <div class="m-actions">
+        <button id="tqCancel" class="btn ghost">Cancelar</button>
+        <button id="tqDone" class="btn primary" disabled>Listo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="result" class="modal" hidden></div>
+
+  <div id="start" class="modal start">
+    <div class="modal-card start-card">
+      <p class="start-k">Simulador de taller mecánico</p>
+      <h1 class="start-t"><span>TALLER</span><span>TORQUE</span></h1>
+      <p class="start-l">Un 1.6 turbo de 4 cilindros simulado con física: aire a presión, turbo, chispa, gasolina, aceite, refrigerante y batería. Cada cliente trae una falla real. Diagnostica, desarma en orden, aprieta a especificación y entrega.</p>
+      <ul class="start-f">
+        <li>Herramienta correcta para cada tornillo y torquímetro de clic</li>
+        <li>Escáner OBD-II con códigos reales y datos en vivo</li>
+        <li>Vista en corte: aire, escape, turbo y aceite en movimiento</li>
+        <li>Activa el sonido: cada cilindro suena por separado</li>
+      </ul>
+      <div class="start-a" id="startActions"></div>
+      <p class="muted small">Simplificaciones honestas: el calor va 10 veces más rápido y la batería 15 veces, para no esperar minutos reales.</p>
+    </div>
+  </div>
+</div>
+<script src="datos.js"></script>
+<script src="motor.js"></script>
+<script src="audio.js"></script>
+<script src="dibujo.js"></script>
+<script src="juego.js"></script>
+</body>
+</html>
