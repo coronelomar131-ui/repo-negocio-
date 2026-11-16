@@ -347,3 +347,14 @@ body { font-weight: 500; }
 .start { background: radial-gradient(ellipse at 50% 0%, #3a3f4a, #0e1014 70%); }
 .start-t span:last-child { text-shadow: 0 6px 30px rgba(240,180,41,.35); font-weight: 800; }
 .ticket { border-radius: 12px; }
+
+/* ---------- mapa ---------- */
+.m-map { position: absolute; right: 8px; top: 112px; min-height: 36px; padding: 6px 12px; font-size: 12px; }
+.mapa { background: rgba(6,10,18,.82); }
+.map-card { width: min(760px, 100%); background: #101a2b; }
+.map-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+#mapCv { width: 100%; height: auto; aspect-ratio: 1; border-radius: 14px; display: block; cursor: pointer; }
+.map-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.map-go { display: flex; gap: 10px; align-items: center; text-align: left; background: #1b2a42; color: var(--text); border: 0; border-radius: 12px; padding: 8px 10px; min-height: 52px; cursor: pointer; font: inherit; }
+.map-go small { display: block; color: var(--text-3); font-size: 12px; }
+.map-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; border: 2px solid #fff; flex: none; }

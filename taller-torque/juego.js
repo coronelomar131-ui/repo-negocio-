@@ -804,7 +804,9 @@ function syncButtons() {
   $('#ctlBox').hidden = pista || mundo; $('#raceBox').hidden = !pista; $('#selbar').hidden = pista || mundo; $('.belt-wrap').hidden = pista || mundo;
   $('#mundoBox').hidden = !mundo; $('#mundoUI').hidden = !mundo;
   $('.screen').classList.toggle('tall', mundo);
-  const td = G.view === 'cofre' || G.view === 'abajo';
+  const td = G.view === 'cofre' || G.view === 'abajo' || G.view === 'banco';
+  $('#bDoors').classList.toggle('on', !!(G.car && G.car.open && G.car.open.doors)); $('#bTrunk').classList.toggle('on', !!(G.car && G.car.open && G.car.open.trunk));
+  $('#camHint').textContent = G.view === 'banco' ? 'Toca una pieza del motor • arrastra para girar • pellizca para acercar' : 'Arrastra para girar • pellizca para acercar • toca una pieza';
   $('#cv').hidden = (td && R3.ok) || pista || mundo; $('#cv3').hidden = !((td && R3.ok) || pista || mundo);
   $('#camHint').hidden = !(td && R3.ok);
   $('#kOff').classList.toggle('on', G.key === 0);
@@ -818,10 +820,10 @@ function syncButtons() {
 }
 function syncViews() {
   $$('.vtab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === G.view)));
-  if (G.view === 'cofre' || G.view === 'abajo') setView3D(G.view);
+  if (G.view === 'cofre' || G.view === 'abajo' || G.view === 'banco') setView3D(G.view);
   if (G.view !== 'mundo' && typeof MUNDO !== 'undefined' && MUNDO.mode === 'auto') exitCar();
   if (G.view === 'mundo') { G.thr = 0; G.full = false; startMundo(); }
-  if (['cofre', 'abajo', 'corte'].includes(G.view) && G.car) putOnLift(G.car);
+  if (['cofre', 'abajo', 'corte', 'banco'].includes(G.view) && G.car) putOnLift(G.car);
   if (G.view === 'pista') { if (RACE.state !== 'run' && RACE.state !== 'stage') { RACE.state = 'menu'; RACE.V = null; } renderRaceBox(); }
   else if (RACE.V && RACE.state !== 'menu') { RACE.state = 'menu'; RACE.V = null; G.full = false; }
   syncButtons();
@@ -1112,6 +1114,9 @@ function bind() {
     syncButtons();
   };
   $('#bLabels').onclick = () => { G.labels = !G.labels; syncButtons(); };
+  const toggleOpen = k => { const c = G.car; if (!c) return; c.open = c.open || {}; c.open[k] = !c.open[k]; if (G.view !== 'cofre' && G.view !== 'abajo') { G.view = 'cofre'; syncViews(); } R3.orbit.yaw = k === 'doors' ? 1.15 : 2.5; R3.orbit.pitch = k === 'doors' ? 0.35 : 0.55; R3.orbit.dist = k === 'doors' ? 820 : 760; R3.focusZ = k === 'doors' ? -220 : -560; syncButtons(); };
+  $('#bDoors').onclick = () => toggleOpen('doors');
+  $('#bTrunk').onclick = () => toggleOpen('trunk');
   $('#bWait').onclick = () => {
     const s = G.car.sim;
     if (s.om > 1) { toast('Apaga el motor para esperar a que enfríe.', 'warn'); return; }

@@ -214,6 +214,19 @@ function init3D(canvas) {
   return true;
 }
 
+/* fondo de plano azul para el banco de motor */
+function blueprintTex() {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512;
+  const x = cv.getContext('2d');
+  const gr = x.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, '#2a6fb0'); gr.addColorStop(1, '#174a80');
+  x.fillStyle = gr; x.fillRect(0, 0, 512, 512);
+  x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 1;
+  for (let i = 0; i <= 512; i += 16) { x.beginPath(); x.moveTo(i + 0.5, 0); x.lineTo(i + 0.5, 512); x.stroke(); x.beginPath(); x.moveTo(0, i + 0.5); x.lineTo(512, i + 0.5); x.stroke(); }
+  x.strokeStyle = 'rgba(255,255,255,.25)';
+  for (let i = 0; i <= 512; i += 64) { x.beginPath(); x.moveTo(i + 0.5, 0); x.lineTo(i + 0.5, 512); x.stroke(); x.beginPath(); x.moveTo(0, i + 0.5); x.lineTo(512, i + 0.5); x.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding;
+  return t;
+}
 /* mapa de reflejos de estudio: paredes grises con barras de luz */
 function studioEnv(renderer) {
   const es = new THREE.Scene();
@@ -431,6 +444,45 @@ function buildBody(modelId, openBay, look) {
   else B.cyl(10, 380, '#3b414c', 160, -152, D.rw + 10, 'x', { ol: false });
   B.tube([[250, -128, -40], [250, -130, D.rear + 40], [250, -132, D.rear - 6]], 6, '#6a727e', { ol: false });
   B.build(g);
+  // puertas (se abren) y cajuela
+  const fourDoor = shape === 'sedan' || shape === 'hatch';
+  const doorSpans = fourDoor ? [[-60, -235], [-235, D.cabR + (shape === 'hatch' ? 20 : 40)]] : [[-60, -270]];
+  const glassTop = D.roofH - 16;
+  for (const side of [-1, 1]) {
+    const xo = side < 0 ? -47 : 361;
+    doorSpans.forEach(([z0, z1], di) => {
+      const L = z0 - z1;
+      const door = new THREE.Group();
+      const DB = new Batch();
+      DB.box(side < 0 ? -2 : -4, -138, -L, 6, D.belt - 2 + 138, L, paint, { ol: false });
+      DB.box(side < 0 ? 0 : -2, D.belt, -L + 10, 3, glassTop - D.belt - (di === 0 ? 0 : 6), L - 22, 'G:#1e2a36', { ol: false });
+      DB.box(side < 0 ? -4 : 2, D.belt - 2, -L, 4, 6, L, trim, { ol: false });
+      DB.box(side < 0 ? -5 : 4, 6, -L + 16, 3, 7, 26, chrome, { ol: false });
+      DB.box(side < 0 ? 4 : -10, -120, -L + 8, 6, D.belt + 110, L - 16, '#3a3d45', { ol: false });
+      DB.build(door);
+      door.position.set(xo, 0, z0);
+      if (look.doors) door.rotation.y = side < 0 ? 1.05 : -1.05;
+      g.add(door);
+      if (look.doors) { const hole = new Batch(); hole.box(side < 0 ? -45 : 359, -136, z1 + 2, 2, D.belt + 132, L - 4, '#202328', { ol: false }); hole.box(side < 0 ? -44 : 352, -140, z1 + 4, 8, 8, L - 8, '#3a3d45', { ol: false }); hole.build(g); }
+    });
+  }
+  const tailTop = shape === 'pickup' ? D.belt + 6 : shape === 'hatch' ? D.belt + 20 : D.belt + 12;
+  const lid = new THREE.Group();
+  const LB = new Batch();
+  if (shape === 'pickup') {
+    LB.box(-40, 0, -4, 400, 110, 8, paint, { ol: false });
+    lid.position.set(0, D.belt - 114, D.rear + 6);
+    if (look.trunk) lid.rotation.x = -1.45;
+  } else {
+    const tl = (D.cabR - 40) - (D.rear + 6);
+    LB.box(-36, -2, -tl, 392, 8, tl, paint, { ol: false });
+    LB.box(-36, -40, -tl - 4, 392, 40, 6, paint, { ol: false });
+    lid.position.set(0, tailTop + 6, D.cabR - 40);
+    if (look.trunk) lid.rotation.x = 1.15;
+    if (look.trunk) { const tb = new Batch(); tb.box(-20, tailTop + 6, D.rear + 16, 360, 3, tl - 24, '#1c1e22', { ol: false }); tb.cyl(46, 4, '#26272c', 70, tailTop + 9, D.rear + 90, 'y', { ol: false, seg: 24 }); tb.box(190, tailTop + 9, D.rear + 40, 90, 20, 60, '#d8443a', { ol: false }); tb.build(g); }
+  }
+  LB.build(lid);
+  g.add(lid);
   // cofre abierto
   if (openBay) {
     const hood = new THREE.Group();
@@ -681,12 +733,15 @@ function partKey(c, id) {
 }
 function sync3D(c) {
   if (!R3.ok) return;
-  const bodyKey = c.uid + '|' + c.model + '|' + (c.color || '') + (c.rust || 0).toFixed(2) + '|' + (c.engId || '-') + '|' + (c.caja ? c.caja.uid + (c.caja.health > 0 ? 'ok' : 'x') : '-');
+  const op = c.open || {};
+  const bodyKey = c.uid + '|' + c.model + '|' + (c.color || '') + (c.rust || 0).toFixed(2) + (op.doors ? 'D' : '') + (op.trunk ? 'T' : '') + '|' + (c.engId || '-') + '|' + (c.caja ? c.caja.uid + (c.caja.health > 0 ? 'ok' : 'x') : '-');
   if (bodyKey !== R3.bodyKey) {
     R3.bodyKey = bodyKey;
     R3.carGroup.clear(); R3.slotGroups = {}; R3.keys = {}; R3.dyn = {};
-    R3.carGroup.add(buildBody(c.model, true, { color: c.color, rust: c.rust }));
-    R3.carGroup.add(chassisFixed(c));
+    R3.bodyG = buildBody(c.model, true, { color: c.color, rust: c.rust, doors: op.doors, trunk: op.trunk });
+    R3.chassisG = chassisFixed(c);
+    R3.carGroup.add(R3.bodyG);
+    R3.carGroup.add(R3.chassisG);
     R3.engGroup = new THREE.Group(); R3.carGroup.add(R3.engGroup);
     if (c.engId) R3.engGroup.add(engineCore(c));
     else { for (const [x, z] of [[110, 60], [240, 60], [110, 140], [240, 140]]) cy(R3.carGroup, 4, 10, '#5b6473', x, -40, z, 'y'); }
@@ -701,7 +756,11 @@ function sync3D(c) {
     const k = partKey(c, id);
     if (R3.keys[id] === k) continue;
     R3.keys[id] = k;
-    if (R3.slotGroups[id]) { R3.slotGroups[id].parent.remove(R3.slotGroups[id]); }
+    if (R3.slotGroups[id]) {
+      const old = R3.slotGroups[id];
+      if (!d.conn && c.slots[id] && !c.slots[id].item) { R3.flying = R3.flying || []; R3.flying.push({ g: old, t: 0 }); old.traverse(o => { o.userData.slot = undefined; }); }
+      else old.parent.remove(old);
+    }
     if (!slotVisible(c, id)) { delete R3.slotGroups[id]; continue; }
     const g = slotGroup(c, id);
     (d.own === 'motor' && !d.lift ? R3.engGroup : R3.carGroup).add(g);
@@ -738,6 +797,7 @@ function pick3D(nx, ny, view) {
     if (id === undefined || id === null) continue;
     const d = G.car.defs[id];
     if (!d) continue;
+    if (view === 'banco') { if (d.own !== 'motor' || d.macro || ['mangIcCal', 'mangIcFria', 'bov', 'filtroAire', 'tuboAdm'].includes(id)) continue; return id; }
     if (d.view !== view && !(id === 'motor' && view === 'cofre') && !(id === 'caja' && view === 'abajo')) continue;
     return id;
   }
@@ -777,16 +837,19 @@ function bindOrbit(cv) {
 function clampOrbit() {
   const o = R3.orbit;
   if (R3.view === 'abajo') o.pitch = Math.max(-1.35, Math.min(-0.2, o.pitch));
+  else if (R3.view === 'banco') { o.pitch = Math.max(-0.9, Math.min(1.45, o.pitch)); o.yaw = ((o.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI; o.dist = Math.max(140, Math.min(700, o.dist)); return; }
   else if (R3.view === 'pista') o.pitch = Math.max(0.05, Math.min(1.3, o.pitch));
   else o.pitch = Math.max(0.2, Math.min(1.45, o.pitch));
-  o.yaw = Math.max(-1.6, Math.min(1.6, o.yaw));
+  o.yaw = ((o.yaw + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
   o.dist = Math.max(140, Math.min(1100, o.dist));
 }
 function setView3D(view) {
   R3.view = view;
+  R3.focusZ = undefined;
   const o = R3.orbit;
   if (view === 'cofre') Object.assign(o, { yaw: 0.12, pitch: 1.0, dist: 440 });
   if (view === 'abajo') Object.assign(o, { yaw: 0.25, pitch: -0.7, dist: 420 });
+  if (view === 'banco') Object.assign(o, { yaw: 0.7, pitch: 0.45, dist: 360 });
 }
 
 /* ---------- cuadro ---------- */
@@ -803,6 +866,29 @@ function frame3D(g, dt) {
   const c = g.car, s = c.sim;
   resize3D();
   sync3D(c);
+  // banco de motor: solo el motor sobre un plano azul
+  const banco = R3.view === 'banco';
+  if (R3.bancoWas !== banco) {
+    R3.bancoWas = banco;
+    if (!R3.blueprint) R3.blueprint = blueprintTex();
+    R3.scene.background = banco ? R3.blueprint : new THREE.Color(0x2a2e36);
+    R3.scene.fog = banco ? null : new THREE.Fog(0x2a2e36, 1800, 3400);
+  }
+  R3.shop.visible = !banco; if (R3.arms) R3.arms.visible = !banco;
+  if (R3.crane && banco) R3.crane.visible = false;
+  if (R3.bodyG) R3.bodyG.visible = !banco;
+  if (R3.chassisG) R3.chassisG.visible = !banco;
+  if (R3.gear) R3.gear.visible = !banco;
+  const BODYMOUNT = { mangIcCal: 1, mangIcFria: 1, bov: 1, filtroAire: 1, tuboAdm: 1 };
+  for (const id in R3.slotGroups) { const d = c.defs[id]; R3.slotGroups[id].visible = !banco || (d && d.own === 'motor' && !BODYMOUNT[id]); }
+  if (R3.pan && banco) R3.pan.visible = false;
+  // piezas que salen volando
+  if (R3.flying) for (let i = R3.flying.length - 1; i >= 0; i--) {
+    const f = R3.flying[i]; f.t += dt;
+    f.g.position.y += dt * 520 * (1 - f.t); f.g.position.x += dt * 120;
+    f.g.rotation.z += dt * 1.2;
+    if (f.t > 0.55) { if (f.g.parent) f.g.parent.remove(f.g); R3.flying.splice(i, 1); }
+  }
   // elevador
   const liftT = c.lift ? 230 : 0;
   R3.lift += (liftT - R3.lift) * Math.min(1, dt * 3);
@@ -835,8 +921,8 @@ function frame3D(g, dt) {
   if (R3.dyn.turbHousing) { const t = (s.Tt - 650) / 450; R3.dyn.turbHousing.material = M3(t > 0.5 ? '#e2702b' : t > 0 ? '#a33a1f' : '#8a4128'); }
   // cámara
   const o = R3.orbit;
-  const ty = (R3.view === 'abajo' ? -90 : 10) + R3.lift;
-  const tgt = new THREE.Vector3(160, ty, 120);
+  const ty = (R3.view === 'abajo' ? -90 : banco ? -10 : 10) + R3.lift;
+  const tgt = new THREE.Vector3(banco ? 176 : 160, ty, banco ? 100 : (R3.focusZ !== undefined && R3.view === 'cofre' ? R3.focusZ : 120));
   const cp = Math.cos(o.pitch);
   R3.cam.position.set(tgt.x + Math.sin(o.yaw) * cp * o.dist, tgt.y + Math.sin(o.pitch) * o.dist, tgt.z + Math.cos(o.yaw) * cp * o.dist);
   if (R3.view === 'abajo' && R3.cam.position.y < -225) R3.cam.position.y = -225;

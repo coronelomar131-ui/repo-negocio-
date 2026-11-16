@@ -415,6 +415,9 @@ function bindMundo() {
   const rel = () => { MUNDO.joy.on = false; MUNDO.joy.x = MUNDO.joy.y = 0; knob.style.transform = ''; };
   pad.addEventListener('pointerup', rel); pad.addEventListener('pointercancel', rel);
   $('#mAct').onclick = () => mundoAction();
+  $('#mMap').onclick = () => openMap();
+  $('#mapClose').onclick = () => { $('#mapa').hidden = true; };
+  $('#mapCv').addEventListener('click', mapClick);
   $('#mAlt').onclick = () => mundoAction('alt');
   holdBtn($('#mGas'), () => { MUNDO.gasBtn = true; }, () => { MUNDO.gasBtn = false; });
   holdBtn($('#mBrk'), () => { MUNDO.brakeBtn = true; }, () => { MUNDO.brakeBtn = false; });
@@ -427,6 +430,77 @@ function bindMundo() {
   ['pointerup', 'pointercancel'].forEach(t => cv.addEventListener(t, () => { drag = null; }));
   const keymap = { w: 'up', arrowup: 'up', s: 'down', arrowdown: 'down', a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right', shift: 'run' };
   MUNDO.keys = {};
-  window.addEventListener('keydown', e => { if (G.view !== 'mundo' || e.target.matches('input, select, textarea')) return; const k = keymap[e.key.toLowerCase()]; if (k) { MUNDO.keys[k] = true; e.preventDefault(); } if (e.key.toLowerCase() === 'e' && !e.repeat) mundoAction(); if (e.key === ' ') MUNDO.brakeBtn = true; });
+  window.addEventListener('keydown', e => { if (G.view !== 'mundo' || e.target.matches('input, select, textarea')) return; const k = keymap[e.key.toLowerCase()]; if (k) { MUNDO.keys[k] = true; e.preventDefault(); } if (e.key.toLowerCase() === 'e' && !e.repeat) mundoAction(); if (e.key.toLowerCase() === 'm' && !e.repeat) { if ($('#mapa').hidden) openMap(); else $('#mapa').hidden = true; } if (e.key === ' ') MUNDO.brakeBtn = true; });
   window.addEventListener('keyup', e => { const k = keymap[e.key.toLowerCase()]; if (k) MUNDO.keys[k] = false; if (e.key === ' ') MUNDO.brakeBtn = false; });
+}
+
+/* ---------- mapa grande de la ciudad con viaje rápido ---------- */
+const DESTINOS = {
+  taller: { x: 0, z: 21, h: Math.PI }, tienda: { x: 58, z: 51, h: Math.PI }, lote: { x: 62, z: -28, h: Math.PI },
+  deshue: { x: -64, z: 66, h: Math.PI }, pista: { x: 0, z: 84, h: 0 },
+};
+function openMap() {
+  if (!MUNDO.built) startMundo();
+  $('#mapa').hidden = false;
+  drawMap();
+  $('#mapList').innerHTML = LUGARES.map(L => `<button class="map-go" data-go="${L.id}"><span class="map-ic" style="background:${L.col}">${mapGlyph(L.id)}</span><span><b>${esc(L.name)}</b><small>${esc(distTo(L))}</small></span></button>`).join('');
+  $$('[data-go]').forEach(b => { b.onclick = () => travel(b.dataset.go); });
+}
+function distTo(L) {
+  const me = MUNDO.mode === 'auto' && MUNDO.car ? MUNDO.car.pos : MUNDO.p;
+  const d = Math.hypot(L.x * MW - me.x, L.z * MW - me.z) / MW;
+  return d < 8 ? 'Estás aquí' : Math.round(d) + ' m';
+}
+function mapGlyph(id) { return { taller: 'T', tienda: 'R', lote: 'A', deshue: 'D', pista: 'P' }[id]; }
+function travel(id) {
+  const t = DESTINOS[id]; if (!t) return;
+  const x = t.x * MW, z = t.z * MW;
+  if (MUNDO.mode === 'auto' && MUNDO.car) {
+    MUNDO.car.pos = id === 'pista' ? { x: 0, z: 80 * MW, h: 0 } : { x, z, h: t.h };
+    MUNDO.V.v = 0; MUNDO.V.locked = false;
+  } else { MUNDO.p.x = x; MUNDO.p.z = z; MUNDO.p.h = t.h; }
+  MUNDO.camH = undefined;
+  $('#mapa').hidden = true;
+  if (G.view !== 'mundo') { G.view = 'mundo'; syncViews(); }
+  toast('Llegaste: ' + LUGARES.find(L => L.id === id).name, 'info');
+}
+function mapClick(e) {
+  const r = e.target.getBoundingClientRect();
+  const W2 = 720, k = W2 / (280 * MW);
+  const px = (e.clientX - r.left) / r.width * W2, pz = (e.clientY - r.top) / r.height * W2;
+  for (const L of LUGARES) { const a = W2 / 2 + L.x * MW * k, b = W2 / 2 - L.z * MW * k; if (Math.hypot(px - a, pz - b) < 34) { travel(L.id); return; } }
+}
+function drawMap() {
+  const cv = $('#mapCv'), x = cv.getContext('2d'), W2 = cv.width;
+  const k = W2 / (280 * MW);
+  const P = (wx, wz) => [W2 / 2 + wx * k, W2 / 2 - wz * k];
+  x.fillStyle = '#16243a'; x.fillRect(0, 0, W2, W2);
+  const c0 = P(-135 * MW, 135 * MW);
+  x.fillStyle = '#1d3150'; x.fillRect(c0[0], c0[1], 270 * MW * k, 270 * MW * k);
+  x.fillStyle = '#25406a';
+  for (const [x0, z0, x1, z1] of MUNDO.solids) { const a = P(x0, z1), b = P(x1, z0); x.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  x.strokeStyle = '#4a6fa5'; x.lineCap = 'round';
+  const road = (ax, az, bx, bz) => { const a = P(ax * MW, az * MW), b = P(bx * MW, bz * MW); x.lineWidth = 10 * MW * k; x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke(); };
+  for (const z of [26, -26, 80]) road(-130, z, 130, z);
+  for (const xx of [-38, 38]) road(xx, -130, xx, 130);
+  road(0, 26, 0, 96);
+  x.strokeStyle = 'rgba(255,255,255,.25)'; x.setLineDash([8, 10]); x.lineWidth = 1.5;
+  for (const z of [26, -26, 80]) { const a = P(-130 * MW, z * MW), b = P(130 * MW, z * MW); x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], a[1]); x.stroke(); }
+  x.setLineDash([]);
+  for (const c of G.cars) if (c.pos) { const a = P(c.pos.x, c.pos.z); x.fillStyle = c.color || MODELOS[c.model].color; x.beginPath(); x.arc(a[0], a[1], 6, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke(); }
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (const L of LUGARES) {
+    const a = P(L.x * MW, L.z * MW);
+    x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.arc(a[0] + 2, a[1] + 3, 20, 0, 7); x.fill();
+    x.fillStyle = L.col; x.beginPath(); x.arc(a[0], a[1], 20, 0, 7); x.fill();
+    x.strokeStyle = '#fff'; x.lineWidth = 3; x.stroke();
+    x.font = '700 18px Rubik, sans-serif'; x.fillStyle = '#fff'; x.fillText(mapGlyph(L.id), a[0], a[1] + 1);
+    x.font = '600 15px Rubik, sans-serif'; x.fillStyle = '#e8eef7'; x.fillText(L.name, a[0], a[1] + 34);
+  }
+  const me = MUNDO.mode === 'auto' && MUNDO.car ? MUNDO.car.pos : MUNDO.p;
+  const a = P(me.x, me.z);
+  x.save(); x.translate(a[0], a[1]); x.rotate(Math.PI - me.h);
+  x.fillStyle = '#f0b429'; x.strokeStyle = '#000'; x.lineWidth = 2;
+  x.beginPath(); x.moveTo(0, -14); x.lineTo(10, 10); x.lineTo(0, 5); x.lineTo(-10, 10); x.closePath(); x.fill(); x.stroke();
+  x.restore();
 }

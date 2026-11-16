@@ -39,6 +39,7 @@
         <button class="vtab" role="tab" data-view="mundo" aria-selected="false">Mundo</button>
         <button class="vtab" role="tab" data-view="cofre" aria-selected="true">Cofre</button>
         <button class="vtab" role="tab" data-view="abajo" aria-selected="false">Abajo</button>
+        <button class="vtab" role="tab" data-view="banco" aria-selected="false">Motor</button>
         <button class="vtab" role="tab" data-view="corte" aria-selected="false">En corte</button>
         <button class="vtab" role="tab" data-view="pista" aria-selected="false">Pista</button>
       </nav>
@@ -49,6 +50,7 @@
         <div id="raceHud" class="race-hud" hidden></div>
         <div id="mundoUI" class="mundo-ui" hidden>
           <canvas id="minimap" width="120" height="120" aria-label="Mapa de la colonia"></canvas>
+          <button id="mMap" class="btn m-map">Mapa</button>
           <div id="joy" class="joy" aria-label="Joystick"><div id="joyK" class="joy-k"></div></div>
           <div class="m-btns"><button id="mAlt" class="btn" hidden></button><button id="mAct" class="btn primary" hidden></button></div>
           <div id="mDrive" class="m-drive" hidden>
@@ -80,6 +82,8 @@
           <button id="bLift" class="btn">Elevador: abajo</button>
           <button id="bDyno" class="btn">Dinamómetro</button>
           <button id="bWait" class="btn">Esperar 5 min</button>
+          <button id="bDoors" class="btn">Puertas</button>
+          <button id="bTrunk" class="btn">Cajuela</button>
           <button id="bLabels" class="btn on">Etiquetas</button>
         </div>
         <div class="ctl lab" id="labBox" hidden>
@@ -145,6 +149,14 @@
   </div>
 
   <div id="result" class="modal" hidden></div>
+
+  <div id="mapa" class="modal mapa" hidden>
+    <div class="modal-card map-card" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+      <div class="map-head"><h2 id="mapTitle" class="m-title">Mapa de la ciudad</h2><button id="mapClose" class="btn ghost sm">Cerrar</button></div>
+      <canvas id="mapCv" width="720" height="720" aria-label="Mapa: toca un lugar para ir"></canvas>
+      <div id="mapList" class="map-list"></div>
+    </div>
+  </div>
 
   <div id="start" class="modal start">
     <div class="modal-card start-card">
