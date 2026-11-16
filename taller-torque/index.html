@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Taller Torque</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0d0f13">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Simulador de taller mecánico en pixel art: motor 1.6 turbo con física real, herramientas, aprietes, escáner OBD-II y fallas de verdad.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Silkscreen:wght@400;700&display=swap">
+<link rel="stylesheet" href="estilos.css?v=8">
+</head>
+<body>
+<div class="app game" id="app">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-mundo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></symbol>
+      <symbol id="i-cofre" viewBox="0 0 24 24"><path d="M3 15l2-6c.4-1.2 1.4-2 2.7-2h8.6c1.3 0 2.3.8 2.7 2l2 6v3H3z"/><path d="M6 7l3-4h6l3 4"/><circle cx="7" cy="15" r="1.4"/><circle cx="17" cy="15" r="1.4"/></symbol>
+      <symbol id="i-abajo" viewBox="0 0 24 24"><path d="M3 9h18v4H3z"/><circle cx="7" cy="16" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M12 2v4M10 4l2 2 2-2"/></symbol>
+      <symbol id="i-motor" viewBox="0 0 24 24"><path d="M5 8h10l2 2h3v7h-3l-2 2H8l-3-3z"/><path d="M8 8V5h6v3M2 11v5M5 13H2"/></symbol>
+      <symbol id="i-corte" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="10" rx="1"/><path d="M12 13v4M8 21h8M10 17h4"/><path d="M9 6h6"/></symbol>
+      <symbol id="i-pista" viewBox="0 0 24 24"><path d="M5 21V3M5 4h12l-2 4 2 4H5"/></symbol>
+      <symbol id="i-orden" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M8 10h8M8 14h8M8 18h5"/></symbol>
+      <symbol id="i-pieza" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></symbol>
+      <symbol id="i-banco" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V5h8v3M3 13h18M11 13v2h2v-2"/></symbol>
+      <symbol id="i-tienda" viewBox="0 0 24 24"><path d="M3 4h2l2.5 11h11L21 7H6.5"/><circle cx="9" cy="19" r="1.6"/><circle cx="17" cy="19" r="1.6"/></symbol>
+      <symbol id="i-escaner" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="6" rx="1"/><path d="M9 15h.01M12 15h.01M15 15h.01M9 18h6"/></symbol>
+      <symbol id="i-ecu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4M10 10h4v4h-4z"/></symbol>
+      <symbol id="i-autos" viewBox="0 0 24 24"><path d="M2 16v-3l2-5h10l4 5h3v3"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/></symbol>
+      <symbol id="i-personal" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.3c3 .1 5.5 2.4 5.5 5.7"/></symbol>
+      <symbol id="i-negocio" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18"/></symbol>
+      <symbol id="i-sonido" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6M19.5 6.5a8 8 0 0 1 0 11"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+      <symbol id="i-llave" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M21 12v2"/></symbol>
+      <symbol id="i-apagar" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/></symbol>
+      <symbol id="i-marcha" viewBox="0 0 24 24"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></symbol>
+      <symbol id="i-gas" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h6"/></symbol>
+      <symbol id="i-elevador" viewBox="0 0 24 24"><path d="M4 21V4M20 21V4M4 12h16M12 9V3M9 6l3-3 3 3"/></symbol>
+      <symbol id="i-dino" viewBox="0 0 24 24"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/></symbol>
+      <symbol id="i-puerta" viewBox="0 0 24 24"><path d="M5 21V5l9-2v18zM14 5h5v16"/><path d="M11 12h.01"/></symbol>
+      <symbol id="i-cajuela" viewBox="0 0 24 24"><path d="M3 18h18v-5l-3-3H6l-3 3z"/><path d="M6 10l3-6h8"/></symbol>
+      <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V3h9l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.4"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+      <symbol id="i-moneda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.7 0-3 1-3 2.2 0 3 6 1.6 6 4.6 0 1.2-1.3 2.2-3 2.2-1.1 0-2.2-.6-2.7-1.6M12 6v2M12 16v2"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="screen">
+    <canvas id="cv" width="960" height="720" aria-label="Motor del auto en corte."></canvas>
+    <canvas id="cv3" width="400" height="300" aria-label="Vista 3D. Arrastra para girar, pellizca para acercar y toca una pieza para seleccionarla."></canvas>
+    <p id="camHint" class="cam-hint" hidden>Arrastra para girar · pellizca para acercar · toca una pieza</p>
+    <div id="raceHud" class="race-hud" hidden></div>
+    <div id="mundoUI" class="mundo-ui" hidden>
+      <canvas id="minimap" width="120" height="120" aria-label="Mapa de la colonia"></canvas>
+      <button id="mMap" class="btn m-map">Mapa</button>
+      <div id="joy" class="joy" aria-label="Joystick"><div id="joyK" class="joy-k"></div></div>
+      <div class="m-btns"><button id="mAlt" class="btn" hidden></button><button id="mAct" class="btn primary" hidden></button></div>
+      <div id="mDrive" class="m-drive" hidden>
+        <div class="m-spd"><b id="mSpd">0</b><small>km/h</small> <span id="mGear">1</span> <span id="mRpm"></span></div>
+        <div class="m-ped"><button id="mRev" class="btn" aria-label="Reversa">R</button><button id="mBrk" class="btn hold">FRENO</button><button id="mGas" class="btn primary hold">GAS</button></div>
+      </div>
+    </div>
+    <div id="caption" class="caption" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <header class="hud-top">
+    <div class="hud-left">
+      <div class="chip money"><svg class="ic"><use href="#i-moneda"/></svg><span id="sMoney">$0</span></div>
+      <div class="chip rep"><span id="sRep">☆☆☆☆☆</span></div>
+      <div class="chip job"><span id="sJob">—</span></div>
+    </div>
+    <div class="hud-right">
+      <button id="btnSound" class="ibtn" aria-pressed="false" aria-label="Sonido apagado"><svg class="ic"><use href="#i-sonido"/></svg></button>
+      <button id="btnMenu" class="ibtn" aria-label="Menú"><svg class="ic"><use href="#i-menu"/></svg></button>
+    </div>
+  </header>
+
+  <nav class="views" role="tablist" aria-label="Vista">
+    <button class="vtab" role="tab" data-view="mundo" aria-selected="false"><svg class="ic"><use href="#i-mundo"/></svg><span>Mundo</span></button>
+    <button class="vtab" role="tab" data-view="cofre" aria-selected="true"><svg class="ic"><use href="#i-cofre"/></svg><span>Cofre</span></button>
+    <button class="vtab" role="tab" data-view="abajo" aria-selected="false"><svg class="ic"><use href="#i-abajo"/></svg><span>Abajo</span></button>
+    <button class="vtab" role="tab" data-view="banco" aria-selected="false"><svg class="ic"><use href="#i-motor"/></svg><span>Motor</span></button>
+    <button class="vtab" role="tab" data-view="corte" aria-selected="false"><svg class="ic"><use href="#i-corte"/></svg><span>Corte</span></button>
+    <button class="vtab" role="tab" data-view="pista" aria-selected="false"><svg class="ic"><use href="#i-pista"/></svg><span>Pista</span></button>
+  </nav>
+
+  <div class="hud-dash" id="hudDash" role="button" tabindex="0" aria-label="Tablero: toca para ver todos los instrumentos">
+    <div class="lights" id="lights" aria-label="Testigos del tablero"></div>
+    <div class="dash" id="dash" aria-label="Instrumentos del taller"></div>
+    <div class="dyno" id="dynoBox" hidden>
+      <div class="dyno-h"><span class="sw t">Torque N·m</span><span class="sw p">Potencia hp</span></div>
+      <canvas id="dynoCv" width="560" height="180" aria-label="Curva del dinamómetro"></canvas>
+      <p id="dynoPeak" class="dyno-p"></p>
+    </div>
+  </div>
+
+  <div class="side-ctl" id="ctlBox">
+    <div class="ctl key" role="group" aria-label="Llave">
+      <button id="kOn" class="cbtn"><svg class="ic"><use href="#i-llave"/></svg><span>Contacto</span></button>
+      <button id="kOff" class="cbtn"><svg class="ic"><use href="#i-apagar"/></svg><span>Apagar</span></button>
+      <button id="kStart" class="cbtn big hold"><svg class="ic"><use href="#i-marcha"/></svg><span>Marcha</span></button>
+      <button id="kFull" class="cbtn big hold gas"><svg class="ic"><use href="#i-gas"/></svg><span>Acelerar</span></button>
+    </div>
+    <div class="ctl misc">
+      <button id="bLift" class="cbtn"><svg class="ic"><use href="#i-elevador"/></svg><span>Elevador</span></button>
+      <button id="bDyno" class="cbtn"><svg class="ic"><use href="#i-dino"/></svg><span>Dino</span></button>
+      <button id="bDoors" class="cbtn"><svg class="ic"><use href="#i-puerta"/></svg><span>Puertas</span></button>
+      <button id="bTrunk" class="cbtn"><svg class="ic"><use href="#i-cajuela"/></svg><span>Cajuela</span></button>
+      <button id="bWait" class="cbtn"><svg class="ic"><use href="#i-reloj"/></svg><span>Esperar</span></button>
+      <button id="bLabels" class="cbtn on"><svg class="ic"><use href="#i-tag"/></svg><span>Nombres</span></button>
+    </div>
+    <div class="ctl thr">
+      <label class="ctl-k" for="thr">Acelerador <output id="thrV">0%</output></label>
+      <input id="thr" type="range" min="0" max="100" value="0">
+    </div>
+    <div class="ctl lab" id="labBox" hidden>
+      <label class="ctl-k" for="wgSpring">Boost <output id="wgV">0.70 bar</output></label>
+      <input id="wgSpring" type="range" min="30" max="140" value="70">
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div id="selbar" class="selbar"></div>
+    <div class="belt-wrap"><div id="belt" class="belt" aria-label="Caja de herramientas"></div></div>
+    <div id="raceBox" class="race-box" hidden></div>
+    <div id="mundoBox" class="race-box" hidden></div>
+    <nav class="dock" aria-label="Taller">
+      <button class="dbtn" data-sheet="orden"><svg class="ic"><use href="#i-orden"/></svg><span>Orden</span></button>
+      <button class="dbtn" data-sheet="pieza"><svg class="ic"><use href="#i-pieza"/></svg><span>Pieza</span></button>
+      <button class="dbtn" data-sheet="banco"><svg class="ic"><use href="#i-banco"/></svg><span>Banco</span></button>
+      <button class="dbtn" data-sheet="tienda"><svg class="ic"><use href="#i-tienda"/></svg><span>Tienda</span></button>
+      <button class="dbtn" data-sheet="escaner"><svg class="ic"><use href="#i-escaner"/></svg><span>Escáner</span></button>
+      <button class="dbtn" data-sheet="ecu"><svg class="ic"><use href="#i-ecu"/></svg><span>ECU</span></button>
+      <button class="dbtn" data-sheet="autos"><svg class="ic"><use href="#i-autos"/></svg><span>Autos</span></button>
+      <button class="dbtn" data-sheet="negocio"><svg class="ic"><use href="#i-personal"/></svg><span>Personal</span></button>
+    </nav>
+  </div>
+
+  <aside class="side sheet" id="sheet" aria-label="Panel del taller" hidden>
+    <div class="sheet-head">
+      <nav class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="orden" aria-selected="false">Orden</button>
+        <button class="tab" role="tab" data-tab="pieza" aria-selected="true">Pieza</button>
+        <button class="tab" role="tab" data-tab="banco" aria-selected="false">Banco</button>
+        <button class="tab" role="tab" data-tab="tienda" aria-selected="false">Tienda</button>
+        <button class="tab" role="tab" data-tab="escaner" aria-selected="false">Escáner</button>
+        <button class="tab" role="tab" data-tab="ecu" aria-selected="false">ECU</button>
+        <button class="tab" role="tab" data-tab="autos" aria-selected="false">Autos</button>
+        <button class="tab" role="tab" data-tab="negocio" aria-selected="false">Personal</button>
+      </nav>
+      <button id="sheetClose" class="ibtn" aria-label="Cerrar panel"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="sheet-body">
+      <section id="p-orden" class="panel" hidden></section>
+      <section id="p-pieza" class="panel"></section>
+      <section id="p-banco" class="panel" hidden></section>
+      <section id="p-tienda" class="panel" hidden></section>
+      <section id="p-escaner" class="panel" hidden></section>
+      <section id="p-ecu" class="panel" hidden></section>
+      <section id="p-autos" class="panel" hidden></section>
+      <section id="p-negocio" class="panel" hidden></section>
+    </div>
+  </aside>
+
+
+  <div id="torque" class="modal" hidden>
+    <div class="modal-card tq" role="dialog" aria-modal="true" aria-labelledby="tqTitle">
+      <h2 id="tqTitle" class="m-title">Apretar</h2>
+      <p id="tqSpec" class="m-lead"></p>
+      <div class="tq-body">
+        <div class="tq-pad">
+          <canvas id="tqCv" width="160" height="160" aria-label="Tornillos: toca uno para elegirlo"></canvas>
+          <span id="tqClick" class="tq-click" aria-hidden="true">¡CLIC!</span>
+        </div>
+        <div class="tq-side">
+          <output id="tqRead" class="tq-read">Sin apretar</output>
+          <div class="tq-meter"><i id="tqBar" data-zone="na"></i></div>
+          <button id="tqPress" class="btn primary big hold">APRETAR<small>mantén</small></button>
+        </div>
+      </div>
+      <p id="tqHint" class="muted"></p>
+      <div class="m-actions">
+        <button id="tqCancel" class="btn ghost">Cancelar</button>
+        <button id="tqDone" class="btn primary" disabled>Listo</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="result" class="modal" hidden></div>
+
+  <div id="mapa" class="modal mapa" hidden>
+    <div class="modal-card map-card" role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+      <div class="map-head"><h2 id="mapTitle" class="m-title">Mapa de la ciudad</h2><button id="mapClose" class="btn ghost sm">Cerrar</button></div>
+      <canvas id="mapCv" width="720" height="720" aria-label="Mapa: toca un lugar para ir"></canvas>
+      <div id="mapList" class="map-list"></div>
+    </div>
+  </div>
+
+  <div id="start" class="modal start">
+    <div class="modal-card start-card">
+      <p class="start-k">Simulador de taller mecánico</p>
+      <h1 class="start-t"><span>TALLER</span><span>TORQUE</span></h1>
+      <p class="start-l">Motores de 4, 6 y 8 cilindros, turbo y atmosféricos, simulados con física: aire a presión, turbo, chispa, gasolina, aceite, refrigerante, batería, embrague, caja y llantas. Arregla autos de clientes, compra proyectos, cámbiales motor y caja, prográmales la computadora y llévalos a los arrancones.</p>
+      <ul class="start-f">
+        <li>Taller en 3D: gira la cámara alrededor del motor y debajo del auto</li>
+        <li>Herramienta correcta para cada tornillo y torquímetro de clic</li>
+        <li>Escáner OBD-II y computadora editable: boost, mezcla, avance, corte, launch</li>
+        <li>Mercado, deshuesadero, empleados y cuarto de milla contra rivales</li>
+        <li>Activa el sonido: cada cilindro suena por separado</li>
+      </ul>
+      <div class="start-a" id="startActions"></div>
+      <p class="muted small">Simplificaciones honestas: el calor va 10 veces más rápido y la batería 15 veces, para no esperar minutos reales.</p>
+    </div>
+  </div>
+</div>
+<script src="datos.js?v=8"></script>
+<script src="motor.js?v=8"></script>
+<script src="audio.js?v=8"></script>
+<script src="dibujo.js?v=8"></script>
+<script src="lib/three.min.js"></script>
+<script src="render3d.js?v=8"></script>
+<script src="negocio.js?v=8"></script>
+<script src="carrera.js?v=8"></script>
+<script src="mundo.js?v=8"></script>
+<script src="juego.js?v=8"></script>
+</body>
+</html>
