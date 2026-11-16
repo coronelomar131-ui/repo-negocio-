@@ -268,7 +268,7 @@ function mundoTick(dt) {
   if (MUNDO.mode === 'pie') {
     const mag = Math.min(1, Math.hypot(jx, jy));
     if (mag > 0.12) {
-      const ang = Math.atan2(jx, -jy) + MUNDO.camYaw;
+      const ang = Math.atan2(-jx, -jy) + MUNDO.camYaw;
       const sp = (K.run ? 7 : 4.2) * MW * mag * dt;
       const nx = MUNDO.p.x + Math.sin(ang) * sp, nz = MUNDO.p.z + Math.cos(ang) * sp;
       if (!blocked(nx, MUNDO.p.z, 0.4 * MW)) MUNDO.p.x = nx;
@@ -284,7 +284,7 @@ function mundoTick(dt) {
   if (MUNDO.crank > 0) { MUNDO.crank -= dt; G.starter = !s.running; if (s.running) MUNDO.crank = 0; }
   const gas = Math.max(MUNDO.gasBtn ? 1 : 0, K.up ? 1 : 0, jy < -0.15 ? -jy : 0);
   const brk = Math.max(MUNDO.brakeBtn ? 1 : 0, K.down ? 1 : 0, jy > 0.15 ? jy : 0);
-  MUNDO.steer += ((jx || 0) * Math.max(0.12, 0.55 - V.v * 0.012) - MUNDO.steer) * Math.min(1, dt * 6);
+  MUNDO.steer += (-(jx || 0) * Math.max(0.12, 0.55 - V.v * 0.012) - MUNDO.steer) * Math.min(1, dt * 6);
   if (MUNDO.rev) {
     V.engaged = false; V.brake = 0;
     const tv = gas > 0.1 ? -3.2 * gas : 0;
@@ -383,17 +383,17 @@ function updateMundoHud() {
   // minimapa
   const mm = $('#minimap'); if (!mm) return;
   const x = mm.getContext('2d'), W2 = mm.width, k = W2 / (270 * MW);
-  const P = (wx, wz) => [W2 / 2 + wx * k, W2 / 2 - wz * k];
+  const P = (wx, wz) => [W2 / 2 - wx * k, W2 / 2 - wz * k];
   x.fillStyle = '#4f6e3e'; x.fillRect(0, 0, W2, W2);
   x.fillStyle = '#3a3d44';
-  for (const z of [26, -26, 80]) { const [a, b] = P(-130 * MW, z * MW); x.fillRect(a, b - 3, 260 * MW * k, 6); }
+  for (const z of [26, -26, 80]) { const [a, b] = P(130 * MW, z * MW); x.fillRect(a, b - 3, 260 * MW * k, 6); }
   for (const xx of [-38, 38]) { const [a, b] = P(xx * MW, 130 * MW); x.fillRect(a - 3, b, 6, 260 * MW * k); }
   for (const L of LUGARES) { const [a, b] = P(L.x * MW, L.z * MW); x.fillStyle = L.col; x.fillRect(a - 5, b - 5, 10, 10); }
   x.fillStyle = '#cfd4da';
   for (const c of G.cars) if (c.pos && c !== MUNDO.car) { const [a, b] = P(c.pos.x, c.pos.z); x.fillRect(a - 2, b - 2, 4, 4); }
   const me = MUNDO.mode === 'auto' ? MUNDO.car.pos : MUNDO.p;
   const [a, b] = P(me.x, me.z);
-  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(a + Math.sin(me.h) * 7, b - Math.cos(me.h) * 7); x.lineTo(a + Math.sin(me.h + 2.5) * 5, b - Math.cos(me.h + 2.5) * 5); x.lineTo(a + Math.sin(me.h - 2.5) * 5, b - Math.cos(me.h - 2.5) * 5); x.fill();
+  x.fillStyle = '#fff'; x.beginPath(); x.moveTo(a - Math.sin(me.h) * 7, b - Math.cos(me.h) * 7); x.lineTo(a - Math.sin(me.h + 2.5) * 5, b - Math.cos(me.h + 2.5) * 5); x.lineTo(a - Math.sin(me.h - 2.5) * 5, b - Math.cos(me.h - 2.5) * 5); x.fill();
 }
 function renderMundoBox() {
   const el = $('#mundoBox'); if (!el) return;
@@ -468,17 +468,17 @@ function mapClick(e) {
   const r = e.target.getBoundingClientRect();
   const W2 = 720, k = W2 / (280 * MW);
   const px = (e.clientX - r.left) / r.width * W2, pz = (e.clientY - r.top) / r.height * W2;
-  for (const L of LUGARES) { const a = W2 / 2 + L.x * MW * k, b = W2 / 2 - L.z * MW * k; if (Math.hypot(px - a, pz - b) < 34) { travel(L.id); return; } }
+  for (const L of LUGARES) { const a = W2 / 2 - L.x * MW * k, b = W2 / 2 - L.z * MW * k; if (Math.hypot(px - a, pz - b) < 34) { travel(L.id); return; } }
 }
 function drawMap() {
   const cv = $('#mapCv'), x = cv.getContext('2d'), W2 = cv.width;
   const k = W2 / (280 * MW);
-  const P = (wx, wz) => [W2 / 2 + wx * k, W2 / 2 - wz * k];
+  const P = (wx, wz) => [W2 / 2 - wx * k, W2 / 2 - wz * k];
   x.fillStyle = '#16243a'; x.fillRect(0, 0, W2, W2);
-  const c0 = P(-135 * MW, 135 * MW);
+  const c0 = P(135 * MW, 135 * MW);
   x.fillStyle = '#1d3150'; x.fillRect(c0[0], c0[1], 270 * MW * k, 270 * MW * k);
   x.fillStyle = '#25406a';
-  for (const [x0, z0, x1, z1] of MUNDO.solids) { const a = P(x0, z1), b = P(x1, z0); x.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+  for (const [x0, z0, x1, z1] of MUNDO.solids) { const a = P(x1, z1), b = P(x0, z0); x.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
   x.strokeStyle = '#4a6fa5'; x.lineCap = 'round';
   const road = (ax, az, bx, bz) => { const a = P(ax * MW, az * MW), b = P(bx * MW, bz * MW); x.lineWidth = 10 * MW * k; x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke(); };
   for (const z of [26, -26, 80]) road(-130, z, 130, z);
@@ -499,7 +499,7 @@ function drawMap() {
   }
   const me = MUNDO.mode === 'auto' && MUNDO.car ? MUNDO.car.pos : MUNDO.p;
   const a = P(me.x, me.z);
-  x.save(); x.translate(a[0], a[1]); x.rotate(Math.PI - me.h);
+  x.save(); x.translate(a[0], a[1]); x.rotate(-me.h);
   x.fillStyle = '#f0b429'; x.strokeStyle = '#000'; x.lineWidth = 2;
   x.beginPath(); x.moveTo(0, -14); x.lineTo(10, 10); x.lineTo(0, 5); x.lineTo(-10, 10); x.closePath(); x.fill(); x.stroke();
   x.restore();
