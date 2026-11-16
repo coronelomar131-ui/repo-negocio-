@@ -285,3 +285,21 @@ ul.bad li::marker { color: var(--red-2); } ul.warn li::marker { color: var(--yel
 select { background: var(--panel-2); color: var(--text); border: 2px solid #000; border-radius: var(--r); min-height: 36px; padding: 4px 8px; font: inherit; font-size: 14px; max-width: 100%; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .vtab { font-size: 11px; padding: 9px 4px; }
+
+/* ---------- mundo libre ---------- */
+@media (max-width: 999px) { .screen.tall #cv3 { aspect-ratio: 3 / 4; } }
+.mundo-ui { position: absolute; inset: 0; pointer-events: none; }
+.mundo-ui > * { pointer-events: auto; }
+#minimap { position: absolute; right: 8px; top: 8px; width: 96px; height: 96px; border: 2px solid #000; border-radius: 4px; image-rendering: pixelated; pointer-events: none; opacity: .92; }
+.joy { position: absolute; left: max(10px, env(safe-area-inset-left, 0px)); bottom: 10px; width: 120px; height: 120px; border-radius: 50%; background: rgba(10,12,16,.45); border: 2px solid rgba(255,255,255,.35); touch-action: none; }
+.joy-k { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(240,180,41,.9); border: 2px solid #000; }
+.m-btns { position: absolute; left: 50%; transform: translateX(-50%); top: 10px; display: flex; gap: 6px; max-width: calc(100% - 130px); flex-wrap: wrap; justify-content: center; }
+.m-btns .btn { font-size: 11px; min-height: 44px; box-shadow: 0 3px 0 rgba(0,0,0,.5); }
+.m-drive { position: absolute; right: 8px; bottom: 10px; display: grid; gap: 6px; justify-items: end; }
+.m-spd { font-family: var(--f-display); color: #fff; text-shadow: 2px 2px 0 #000; display: flex; gap: 8px; align-items: baseline; }
+.m-spd b { font-size: 30px; } .m-spd small { font-size: 10px; } #mGear { font-size: 24px; color: var(--yel); } #mRpm { font-size: 10px; }
+.m-ped { display: flex; gap: 6px; }
+.m-ped .btn { min-height: 64px; min-width: 64px; font-size: 13px; }
+#mRev.on { background: var(--yel); color: var(--yel-ink); }
+.places { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.places .dot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #000; }

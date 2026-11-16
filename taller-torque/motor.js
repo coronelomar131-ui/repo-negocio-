@@ -609,7 +609,7 @@ function simFrame(c, inp, fdt) {
    Patinando: pasa el torque máximo que aguanta el embrague o el agarre de las llantas. */
 function couple(s, V, net, I, dt, seized) {
   const G = V.G;
-  const resist = V.v > 0.05 ? 0.5 * 1.2 * V.cdA * V.v * V.v + V.m * 9.81 * 0.013 : 0;
+  const resist = V.v > 0.05 ? 0.5 * 1.2 * V.cdA * V.v * V.v + V.m * 9.81 * 0.013 + (V.brake || 0) : 0;
   if (!(G > 0) || !V.engaged || seized) {
     if (!seized) s.om = Math.max(0, s.om + net / I * dt);
     V.v = Math.max(0, V.v - resist / V.m * dt); V.x += V.v * dt; V.a = -resist / V.m; V.locked = false; V.tc = 0; V.spin = false;
@@ -644,7 +644,7 @@ function couple(s, V, net, I, dt, seized) {
   V.x += V.v * dt;
 }
 function coast(V, dt) {
-  const resist = V.v > 0.05 ? 0.5 * 1.2 * V.cdA * V.v * V.v + V.m * 9.81 * 0.013 : 0;
+  const resist = V.v > 0.05 ? 0.5 * 1.2 * V.cdA * V.v * V.v + V.m * 9.81 * 0.013 + (V.brake || 0) : 0;
   V.v = Math.max(0, V.v - resist / V.m * dt); V.x += V.v * dt; V.a = 0; V.tc = 0;
 }
 

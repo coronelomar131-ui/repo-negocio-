@@ -14,6 +14,8 @@ Motores de 4, 6 y 8 cilindros, turbo y atmosféricos, modelados con física:
 
 ## Cómo se juega
 
+- **Mundo libre:** caminas con tu mecánico por la colonia (joystick o W A S D), te subes a tus autos y los manejas. Lugares: tu taller (el auto que metes queda en el elevador), refaccionaria, lote de autos, deshuesadero y la pista.
+
 - **Clientes:** cada uno trae una falla real. Diagnostica, repara con la herramienta y el apriete correctos, y entrega.
 - **Autos:** compra proyectos en el mercado, motores y cajas en el deshuesadero, y véndelos ya arreglados.
 - **Cambio de motor y caja:** procedimiento paso a paso con pluma; revisa si cabe en el cofre, si la caja es de la misma familia (o pon placa adaptadora) y reprograma la ECU.
@@ -37,6 +39,7 @@ Motores de 4, 6 y 8 cilindros, turbo y atmosféricos, modelados con física:
 | `dibujo.js` | Vista en corte 2D y respaldo 2D si no hay WebGL |
 | `negocio.js` | Garaje, mercado, cambio de motor y caja, ECU, empleados y guardado |
 | `carrera.js` | Pista de arrancones |
+| `mundo.js` | Mundo libre: personaje, colonia, manejo y minimapa |
 | `audio.js` | Sonido sintetizado por cilindro |
 | `juego.js` | Reglas del taller e interfaz |
 | `manifest.webmanifest`, `sw.js`, `icons/` | App instalable y sin internet |

@@ -800,10 +800,12 @@ function updateMeter() {
 /* ---------- controles y botones ---------- */
 function syncButtons() {
   const c = G.car || { lift: false };
-  const pista = G.view === 'pista';
-  $('#ctlBox').hidden = pista; $('#raceBox').hidden = !pista; $('#selbar').hidden = pista; $('.belt-wrap').hidden = pista;
+  const pista = G.view === 'pista', mundo = G.view === 'mundo';
+  $('#ctlBox').hidden = pista || mundo; $('#raceBox').hidden = !pista; $('#selbar').hidden = pista || mundo; $('.belt-wrap').hidden = pista || mundo;
+  $('#mundoBox').hidden = !mundo; $('#mundoUI').hidden = !mundo;
+  $('.screen').classList.toggle('tall', mundo);
   const td = G.view === 'cofre' || G.view === 'abajo';
-  $('#cv').hidden = (td && R3.ok) || pista; $('#cv3').hidden = !((td && R3.ok) || pista);
+  $('#cv').hidden = (td && R3.ok) || pista || mundo; $('#cv3').hidden = !((td && R3.ok) || pista || mundo);
   $('#camHint').hidden = !(td && R3.ok);
   $('#kOff').classList.toggle('on', G.key === 0);
   $('#kOn').classList.toggle('on', G.key >= 1);
@@ -817,6 +819,9 @@ function syncButtons() {
 function syncViews() {
   $$('.vtab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === G.view)));
   if (G.view === 'cofre' || G.view === 'abajo') setView3D(G.view);
+  if (G.view !== 'mundo' && typeof MUNDO !== 'undefined' && MUNDO.mode === 'auto') exitCar();
+  if (G.view === 'mundo') { G.thr = 0; G.full = false; startMundo(); }
+  if (['cofre', 'abajo', 'corte'].includes(G.view) && G.car) putOnLift(G.car);
   if (G.view === 'pista') { if (RACE.state !== 'run' && RACE.state !== 'stage') { RACE.state = 'menu'; RACE.V = null; } renderRaceBox(); }
   else if (RACE.V && RACE.state !== 'menu') { RACE.state = 'menu'; RACE.V = null; G.full = false; }
   syncButtons();
@@ -834,7 +839,7 @@ function onAction(act, el) {
     case 'mod': payMod(el.dataset.mod, +el.dataset.size); return;
     case 'flash': flashECU(); return;
     case 'reflash': reflash(); return;
-    case 'work': { const c = G.cars.find(x => x.uid === uid); if (!c) return; if (G.car && G.car.sim.om > 1) { toast('Apaga el motor del auto actual.', 'warn'); return; } setCar(c); G.view = 'cofre'; syncViews(); refreshAll(); return; }
+    case 'work': { const c = G.cars.find(x => x.uid === uid); if (!c) return; if (G.car && G.car.sim.om > 1) { toast('Apaga el motor del auto actual.', 'warn'); return; } setCar(c); putOnLift(c); G.view = 'cofre'; syncViews(); refreshAll(); return; }
     case 'sell': sellCar(uid); return;
     case 'sellmotor': sellPart('motor', uid); return;
     case 'sellcaja': sellPart('caja', uid); return;
@@ -902,7 +907,11 @@ function loop(ts) {
   lastT = ts;
   G.t += dt;
   const c = G.car;
-  if (!c) { if (R3.ok && (G.view === 'cofre' || G.view === 'abajo')) { R3.renderer.clear(); } requestAnimationFrame(loop); return; }
+  if (!c) {
+    if (G.view === 'mundo' && R3.ok) { mundoTick(dt); frameMundo(dt); }
+    else if (R3.ok && (G.view === 'cofre' || G.view === 'abajo')) { R3.renderer.clear(); }
+    requestAnimationFrame(loop); return;
+  }
   SLOTS = c.defs;
   const s = c.sim;
   // acelerador
@@ -911,10 +920,12 @@ function loop(ts) {
   if (G.key === 0) G.starter = false;
   const racing = G.view === 'pista' && RACE.V && RACE.state !== 'menu';
   if (racing) raceTick(dt);
-  const inp = { key: G.key, starter: G.starter && G.key >= 1, thr: G.thrNow, dyno: G.dyno && G.upg.has('dinamo') || (G.dyno && G.mode === 'lab'), veh: racing ? RACE.V : null };
+  const mundoV = G.view === 'mundo' && R3.ok ? mundoTick(dt) : null;
+  const inp = { key: G.key, starter: G.starter && G.key >= 1, thr: G.thrNow, dyno: G.dyno && G.upg.has('dinamo') || (G.dyno && G.mode === 'lab'), veh: racing ? RACE.V : (mundoV && MUNDO.car === c ? mundoV : null) };
   if (inp.starter && c.cfg && c.cfg.block && !s.running) { toast(c.cfg.block, 'warn'); G.starter = false; inp.starter = false; }
   simFrame(c, inp, dt);
   if (racing && RACE.state === 'stage' && RACE.V) { RACE.V.v = 0; RACE.V.x = 0; RACE.V.locked = false; }
+  if (mundoV) mundoAfterSim(dt);
   // eventos del motor
   for (const e of s.events) handleEvent(e);
   s.events.length = 0;
@@ -942,6 +953,7 @@ function loop(ts) {
   G.beltPos += s.om * dt * 1.2;
   if (G.view === 'corte' || !R3.ok && G.view !== 'pista') { stepFx(G, dt); resizeDraw(); render(G); }
   else if (G.view === 'pista') { frameRace(dt); updateRaceHud(); }
+  else if (G.view === 'mundo') { frameMundo(dt); }
   else { R3.view = G.view; frame3D(G, dt); }
   // audio
   if (AUDIO.on) {
@@ -1036,6 +1048,7 @@ function startGame(mode) {
     G.view = 'cofre';
   }
   $('#start').hidden = true;
+  G.view = 'mundo'; MUNDO.carKey = ''; MUNDO.p = { x: 0, z: 18 * MW, h: Math.PI };
   syncViews(); refreshAll(); setTab(mode === 'lab' ? 'autos' : 'orden');
   save();
 }
@@ -1125,6 +1138,7 @@ function bind() {
   // teclado
   window.addEventListener('keydown', e => {
     if (e.target.matches('input, textarea')) return;
+    if (G.view === 'mundo') return;
     if (e.key === 'w' || e.key === 'ArrowUp') { G.full = true; }
     if (G.view === 'pista' && (e.key === 'e' || e.key === 'ArrowRight') && !e.repeat) raceShift(1);
     if (G.view === 'pista' && (e.key === 'q' || e.key === 'ArrowLeft') && !e.repeat) raceShift(-1);
@@ -1154,6 +1168,7 @@ function holdBtn(el, on, off) {
 window.addEventListener('DOMContentLoaded', () => {
   initDraw($('#cv'));
   init3D($('#cv3'));
+  bindMundo();
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|artifact/.test(location.hostname)) { try { navigator.serviceWorker.register('sw.js'); } catch (e) { } }
   buildPaths();
   buildDash();

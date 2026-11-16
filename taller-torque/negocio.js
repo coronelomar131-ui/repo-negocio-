@@ -457,7 +457,7 @@ function renderNegocio() {
 }
 
 /* ---------- guardado completo ---------- */
-function serCar(c) { const o = Object.assign({}, c); delete o.sim; delete o.defs; delete o.cfg; return o; }
+function serCar(c) { const o = Object.assign({}, c); delete o.sim; delete o.defs; delete o.cfg; delete o.dmg0race; return o; }
 function deserCar(o) { o.defs = buildSlots(o.engId); o.sim = newSim(o.engId ? MOTORES[o.engId].cyl : 4); for (const id in o.defs) if (!o.slots[id]) o.slots[id] = freshSlot(o.defs[id]); o.mods = o.mods || {}; return o; }
 function save() {
   if (G.mode !== 'taller') return;
