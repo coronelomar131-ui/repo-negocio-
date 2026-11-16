@@ -19,13 +19,14 @@ class TTSynth {
     if (p.bovN !== undefined && p.bovN !== this.lastBov) { this.lastBov = p.bovN; this.bov = 1; }
     if (p.knockN !== undefined && p.knockN !== this.lastKnock) { this.lastKnock = p.knockN; this.knk = 1; }
     if (p.clickN !== undefined && p.clickN !== this.lastClick) { this.lastClick = p.clickN; this.click = 1; }
+    if (p.popN !== undefined && p.popN !== this.lastPop) { this.lastPop = p.popN; this.pop = 1; }
     Object.assign(this.p, p);
   }
   noise() { this.n = (this.n * 1103515245 + 12345) & 0x7fffffff; return this.n / 0x3fffffff - 1; }
   render(out, len) {
     const p = this.p, sr = this.sr, TAU = 6.283185307;
     const cps = p.rpm / 120;                 // ciclos de 720° por segundo
-    const fires = [0, 0.75, 0.25, 0.5];      // cil 1,2,3,4 → 1-3-4-2
+    const fires = p.fires || [0, 0.75, 0.25, 0.5];
     const cut = 300 + p.thr * 2600 + p.rpm * 0.25;
     const a = 1 - Math.exp(-TAU * cut / sr);
     const decay = Math.exp(-1 / (sr * (0.012 - Math.min(0.007, p.rpm / 900000))));
@@ -35,14 +36,14 @@ class TTSynth {
       const prev = this.ph;
       this.ph += cps / sr;
       if (this.ph >= 1) this.ph -= 1;
-      for (let c = 0; c < 4; c++) {
+      for (let c = 0; c < fires.length; c++) {
         const f = fires[c];
         const crossed = prev <= this.ph ? (prev < f && this.ph >= f) || (f === 0 && prev > this.ph) : (prev < f || this.ph >= f);
         if (crossed && cps > 0.5) {
-          const amp = p.amps[c];
-          this.env = Math.max(this.env * 0.4, 0.15 + amp * 0.55);
+          const amp = p.amps[c] || 0;
+          this.env = Math.max(this.env * 0.4, (0.15 + amp * 0.55) * (p.big || 1));
           this.t0 = 0;
-          this.f1 = 48 + Math.random() * 6; this.f2 = 150 + Math.random() * 30;
+          this.f1 = (48 + Math.random() * 6) * (p.low || 1); this.f2 = (150 + Math.random() * 30) * (p.low || 1);
           if (amp < 0.05) this.env = 0.07; // hueco: solo bombeo, sin explosión
         }
       }
@@ -82,6 +83,8 @@ class TTSynth {
         this.rkt = (this.rkt || 0) + 1 / sr;
         y += Math.sin(TAU * 1100 * this.rkt) * this.rk * 0.1; this.rk *= Math.exp(-1 / (sr * 0.01));
       }
+      // petardeo del escape
+      if (this.pop > 0.001) { y += (this.noise() * 0.7 + Math.sin(this.t0 * 900) * 0.3) * this.pop * 0.6; this.pop *= Math.exp(-1 / (sr * 0.03)); }
       // clic (solenoide, torquímetro)
       if (this.click > 0.001) { y += (this.noise() * 0.6 + 0.4) * this.click * 0.5; this.click *= Math.exp(-1 / (sr * 0.004)); }
       y *= p.vol;

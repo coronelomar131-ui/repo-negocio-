@@ -113,10 +113,11 @@ function flushLabels() {
 }
 
 /* ---------- utilidades de estado ---------- */
-function has(c, id) { const s = c.slots[id]; return SLOTS[id].conn ? s.on : !!s.item; }
-function itemOf(c, id) { return c.slots[id].item; }
+function has(c, id) { const d = c.defs[id], s = c.slots[id]; if (!d || !s) return false; return d.conn ? !!s.on : !!s.item; }
+function itemOf(c, id) { return c.slots[id] && c.slots[id].item; }
 function slotVisible(c, id) {
-  const d = SLOTS[id];
+  const d = c.defs[id];
+  if (!d) return false;
   if (d.cover) for (const k of d.cover) if (has(c, k)) return false;
   return true;
 }
@@ -179,7 +180,9 @@ function drawCofre(g) {
   box(100, 44, 152, 106, P.steel, P.steelHi, P.steelLo);
   // múltiple de admisión
   box(108, 28, 140, 18, P.blk, P.blkHi, P.blkLo);
-  for (const x of [132, 160, 188, 216]) R(x - 4, 44, 8, 6, P.blkHi);
+  const E2 = c.engId ? MOTORES[c.engId] : null;
+  if (!E2) { OX = 0; OY = 0; R(100, 44, 152, 106, P.bay2); label(176, 92, 'SIN MOTOR', P.yel, 7, 'center'); drawCofreRest(g); return; }
+  for (let i = 0; i < E2.cyl; i++) R(injX(E2.cyl, i) - 4, 44, 8, 6, P.blkHi);
   // cuerpo de aceleración
   box(96, 32, 16, 16, P.alu, P.aluHi, P.aluLo);
   disc(104, 40, 5, P.blkLo);
@@ -187,7 +190,7 @@ function drawCofre(g) {
   line(104 - Math.round(4 * Math.cos(thrA * 1.4)), 40 - Math.round(4 * Math.sin(thrA * 1.4)), 104 + Math.round(4 * Math.cos(thrA * 1.4)), 40 + Math.round(4 * Math.sin(thrA * 1.4)), P.aluHi);
   // tapa de punterías (debajo de la tapa del motor)
   box(118, 62, 120, 46, P.alu, P.aluHi, P.aluLo);
-  for (let i = 0; i < 4; i++) drawCoilWell(g, i);
+  for (let i = 0; i < E2.cyl; i++) drawCoilWell(g, i);
   // tapón de aceite
   if (has(c, 'tapaAceite')) { disc(246, 74, 5, P.ink); disc(246, 74, 4, P.yel); R(243, 73, 7, 2, P.yelLo); }
   else { disc(246, 74, 4, P.ink); disc(246, 74, 3, '#3a2c0c'); px(245, 73, P.oil); }
@@ -196,11 +199,11 @@ function drawCofre(g) {
     box(118, 62, 120, 46, P.blk, P.blkHi, P.blkLo);
     for (let x = 124; x < 232; x += 6) R(x, 66, 3, 38, '#222429');
     box(158, 78, 40, 13, P.blkHi, '#4a4c54', P.blk);
-    label(178, 81, '1.6 T', '#9aa0a8', 5, 'center');
+    label(178, 81, E2.short, '#9aa0a8', 5, 'center');
   }
   // riel de inyectores e inyectores
-  for (let i = 0; i < 4; i++) {
-    const id = 'iny' + (i + 1), x = [132, 160, 188, 216][i];
+  for (let i = 0; i < E2.cyl; i++) {
+    const id = 'iny' + (i + 1), x = injX(E2.cyl, i);
     if (!has(c, 'riel')) {
       if (has(c, id)) { box(x - 3, 45, 7, 14, P.blk, P.blkHi, P.blkLo); R(x - 3, 47, 7, 2, P.grn); px(x, 58, P.aluHi); }
       else { disc(x, 52, 2, P.ink); }
@@ -208,7 +211,7 @@ function drawCofre(g) {
   }
   if (has(c, 'riel')) {
     box(114, 48, 134, 9, P.aluLo, P.alu, P.steel);
-    for (const x of [132, 160, 188, 216]) { R(x - 3, 56, 7, 3, P.blk); R(x - 3, 57, 7, 1, P.grn); }
+    for (let i = 0; i < E2.cyl; i++) { const x = injX(E2.cyl, i); R(x - 3, 56, 7, 3, P.blk); R(x - 3, 57, 7, 1, P.grn); }
     bolt(146, 52); bolt(202, 52);
     R(244, 50, 6, 5, P.blk); px(246, 49, P.yel);
     pipe([[106, 52], [114, 52]], 2, P.blkHi);
@@ -223,7 +226,7 @@ function drawCofre(g) {
   else { disc(256, 102, 5, P.ink); disc(256, 102, 3, c.cool.level > 0.6 ? P.coolLo : P.blkLo); }
 
   // turbo
-  drawTurboTop(g);
+  if (E2.turbo) drawTurboTop(g);
   // línea de aceite del turbo
   if (has(c, 'lineaTurbo')) { pipe([[238, 142], [252, 146], [264, 158]], 2, P.aluLo, P.aluHi); bolt(238, 142, P.yel); bolt(264, 158, P.yel); }
   else { bolt(238, 142); if (has(c, 'turbo')) { disc(264, 158, 2, P.oilDk); } }
@@ -233,21 +236,28 @@ function drawCofre(g) {
     for (let y = 154; y < 172; y += 4) for (let x = 235 + (y % 8 ? 2 : 0); x < 258; x += 4) px(x, y, P.aluLo);
     bolt(236, 153); bolt(256, 170);
   }
-  // manguera caliente (compresor → intercooler)
-  drawHose(g, 'mangIcCal', [[282, 186], [282, 210]]);
-  // tubo de admisión (filtro → compresor)
-  if (has(c, 'tuboAdm')) pipe([[300, 62], [300, 150], [296, 160]], 9, P.blk, P.blkHi);
-  else { R(296, 60, 9, 4, P.blkLo); }
+  if (E2.turbo) {
+    drawHose(g, 'mangIcCal', [[282, 186], [282, 210]]);
+    if (has(c, 'tuboAdm')) pipe([[300, 62], [300, 150], [296, 160]], 9, P.blk, P.blkHi);
+    else { R(296, 60, 9, 4, P.blkLo); }
+  } else if (has(c, 'tuboAdm')) pipe([[264, 18], [112, 18], [104, 32]], 9, P.blk, P.blkHi);
 
   // banda, poleas y alternador
   drawBelt(g);
   drawAlternator(g);
   OX = 0; OY = 0;
+  drawCofreRest(g);
+}
+function drawCofreRest(g) {
+  const c = g.car, s = c.sim;
+  if (!hasTurbo(c)) { /* atmosférico: sin intercooler ni BOV */ }
+  else {
 
   // manguera fría y BOV (están sujetas a la carrocería y al motor)
   drawHose(g, 'mangIcFria', [[48, 208], [48, 66], [98, 66], [104, 50]]);
   if (has(c, 'bov')) { box(28, 146, 14, 14, P.alu, P.aluHi, P.aluLo); disc(35, 153, 3, P.aluLo); R(34, 152, 3, 3, P.aluHi); pipe([[35, 146], [35, 140], [42, 140]], 1, P.blk); if (s.time - s.bovT < 0.3) for (let i = 0; i < 5; i++) px(26 - Math.random() * 8, 150 + Math.random() * 8, '#d7dbe0'); }
   else if (has(c, 'mangIcFria')) { disc(42, 153, 2, P.ink); }
+  }
   // tapón del radiador
   if (has(c, 'tapaRad')) { disc(306, 198, 6, P.ink); disc(306, 198, 5, P.steelHi); disc(306, 198, 3, P.alu); R(303, 197, 7, 2, P.yel); }
   else { disc(306, 198, 5, P.ink); disc(306, 198, 4, c.cool.level > 0.7 ? P.cool : P.coolLo); }
@@ -292,25 +302,23 @@ function drawBattery(g) {
 }
 
 function drawFuse(c, id) {
-  const [x, y] = SLOTS[id].r;
+  const [x, y] = c.defs[id].r;
   if (has(c, id)) { R(x, y, 9, 12, P.ink); R(x + 1, y + 1, 7, 10, '#3d7ccf'); R(x + 2, y + 2, 5, 3, '#9cc7f2'); label(x + 4.5, y + 6, '15', '#0e2440', 3.5, 'center'); }
   else { R(x, y, 9, 12, P.ink); R(x + 2, y + 3, 1, 6, P.aluLo); R(x + 6, y + 3, 1, 6, P.aluLo); }
 }
 
 function drawCoilWell(g, i) {
-  const c = g.car, x = [132, 160, 188, 216][i];
+  const c = g.car, Pp = cylPos(MOTORES[c.engId])[i], x = Pp.x, y0 = Pp.y, hh = Pp.h, cyw = y0 + Math.round(hh / 2) + 1;
   const bob = 'bob' + (i + 1), buj = 'buj' + (i + 1);
   // pozo de bujía
-  disc(x, 82, 5, P.aluLo); disc(x, 82, 4, P.blkLo);
+  disc(x, cyw, 5, P.aluLo); disc(x, cyw, 4, P.blkLo);
   if (has(c, buj)) {
-    if (!has(c, bob)) { disc(x, 82, 3, P.white); disc(x, 82, 1, P.grey); }
-  } else { disc(x, 82, 3, P.ink); px(x - 1, 81, '#3a2c0c'); }
+    if (!has(c, bob)) { disc(x, cyw, 3, P.white); disc(x, cyw, 1, P.grey); }
+  } else { disc(x, cyw, 3, P.ink); px(x - 1, cyw - 1, '#3a2c0c'); }
   if (has(c, bob)) {
-    box(x - 5, 66, 10, 30, P.blk, P.blkHi, P.blkLo);
-    box(x - 4, 66, 8, 8, P.grey, P.aluHi, P.aluLo);
-    R(x - 2, 68, 4, 3, P.ink);
-    bolt(x, 92);
-    pipe([[x, 66], [x, 62], [x + 8, 60]], 1, P.blk);
+    box(x - 5, y0, 10, hh, P.blk, P.blkHi, P.blkLo);
+    box(x - 4, y0, 8, Math.min(8, hh - 4), P.grey, P.aluHi, P.aluLo);
+    bolt(x, y0 + hh - 4);
   }
 }
 
@@ -396,9 +404,9 @@ function drawAbajo(g) {
   box(46, 0, 10, H, P.steelLo, P.steel, P.ink); box(264, 0, 10, H, P.steelLo, P.steel, P.ink);
   box(46, 120, 228, 10, P.steelLo, P.steel, P.ink);
   // transmisión
-  box(14, 26, 92, 86, P.alu, P.aluHi, P.aluLo);
-  for (let y = 34; y < 104; y += 8) R(20, y, 80, 1, P.aluLo);
-  label(60, 30, 'TRANSMISIÓN', '#4b525c', 4.5, 'center');
+  if (c.caja) { box(14, 26, 92, 86, P.alu, P.aluHi, P.aluLo); for (let y = 34; y < 104; y += 8) R(20, y, 80, 1, P.aluLo); label(60, 30, CAJAS[c.caja.id].short, '#4b525c', 4.5, 'center'); }
+  else label(60, 60, 'SIN CAJA', P.yel, 5, 'center');
+  if (!c.engId) { R(108, 58, 104, 84, '#191b20'); label(160, 96, 'SIN MOTOR', P.yel, 6, 'center'); }
   // cárter
   box(108, 58, 104, 84, P.steel, P.steelHi, P.steelLo);
   for (let x = 116; x < 206; x += 10) R(x, 64, 2, 70, P.steelLo);
@@ -490,6 +498,9 @@ function buildPaths() {
   const comp = swirl(282, 72, 9, 0, -Math.PI * 1.5, 10);
   PATHS.intake = mkPath([[306, 32], [306, 72], [292, 72], ...comp, [272, 84], [282, 92], [282, 220], [20, 220], [20, 202], [20, 118], [20, 56], [58, 56], [72, 56], [96, 60], [118, 70], [128, 78]]);
   PATHS.intake.marks = { comp: 3, ic: 17, ic2: 19 };
+  PATHS.intakeNA = mkPath([[306, 32], [306, 220], [20, 220], [20, 56], [58, 56], [72, 56], [96, 60], [118, 70], [128, 78]]);
+  PATHS.intakeNA.marks = { comp: 99, ic: 99, ic2: 99 };
+  PATHS.exhaustNA = mkPath([[152, 78], [158, 72], [176, 64], [204, 64], [222, 72], [230, 88], [230, 172]]);
   const turb = swirl(230, 72, 9, Math.PI, Math.PI * 2.4, 10);
   PATHS.exhaust = mkPath([[152, 78], [158, 72], [176, 64], [204, 64], [214, 70], ...turb, [230, 88], [230, 172]]);
   PATHS.wg = mkPath([[152, 78], [158, 72], [176, 64], [204, 64], [208, 74], [208, 108], [226, 110], [230, 120], [230, 172]]);
@@ -520,10 +531,12 @@ function stepFx(g, dt) {
   if (s.om > 5 || mt > 0.0005) A.i += dt * (4 + mt * 700);
   if (s.running) { A.e += dt * (4 + me * 700) * (1 - s.wg * 0.8); A.w += dt * me * 700 * s.wg; }
   if (s.bovOpen || s.time - s.bovT < 0.25) A.b += dt * 60;
-  if (s.oilP > 0.1) A.o += dt * (2 + s.oilP * 4);
+  if (s.oilP > 0.1 && hasTurbo(c)) A.o += dt * (2 + s.oilP * 4);
   if (s.mLeak > 0.002 && s.Pc > PH.Pa + 3000) A.l += dt * s.mLeak * 2000;
-  while (A.i >= 1) { A.i--; spawn('intake', vi, 'air'); }
-  while (A.e >= 1) { A.e--; spawn('exhaust', ve, 'ex'); }
+  const na = !hasTurbo(c);
+  if (!c.engId) { A.i = A.e = 0; }
+  while (A.i >= 1) { A.i--; spawn(na ? 'intakeNA' : 'intake', vi, 'air'); }
+  while (A.e >= 1) { A.e--; spawn(na ? 'exhaustNA' : 'exhaust', ve, 'ex'); }
   while (A.w >= 1) { A.w--; spawn('wg', ve, 'ex'); }
   while (A.b >= 1) { A.b--; spawn('bov', 120, 'bov'); }
   while (A.o >= 1) { A.o--; spawn('oil', 30 + s.oilP * 20, 'oil'); }
@@ -541,6 +554,8 @@ function drawCorte(g) {
   R(0, 0, W, H, '#14171c');
   for (let x = 0; x < W; x += 16) R(x, 0, 1, H, '#181b21');
   for (let y = 0; y < H; y += 16) R(0, y, W, 1, '#181b21');
+  if (!c.engId) { label(160, 110, 'NO HAY MOTOR EN ESTE AUTO', P.yel, 7, 'center'); return; }
+  const E = engP(c), na = !E.e.turbo;
   const Tc = s.Tm, boost = s.Pc - PH.Pa;
   const coldCol = P.blue, hotAir = lerpC(P.blue, P.hot, Math.min(1, Math.max(0, (Tc - 300) / 90)));
   // caja de aire y filtro
@@ -549,6 +564,8 @@ function drawCorte(g) {
   for (let x = 276; x < 312; x += 3) R(x, 9, 2, 18, g.mode === 'lab' ? lerpC('#6b5a3a', '#e8dcae', fH) : '#d9cfa6');
   if (!has(c, 'filtroAire')) R(275, 8, 38, 20, P.blkLo);
   // tubo filtro → compresor
+  if (na) pipe([[306, 32], [306, 220], [20, 220], [20, 56], [58, 56]], 8, has(c, 'tuboAdm') ? '#3a3d45' : P.blkLo, '#50545e');
+  else {
   pipe([[306, 32], [306, 72], [296, 72]], 8, P.blk, P.blkHi);
   // tubería de presión: compresor → intercooler → mariposa
   const hot = has(c, 'mangIcCal'), cold = has(c, 'mangIcFria');
@@ -556,6 +573,7 @@ function drawCorte(g) {
   box(6, 116, 28, 90, P.alu, P.aluHi, P.aluLo);
   for (let y = 120; y < 202; y += 3) R(9, y, 22, 1, P.aluLo);
   pipe([[20, 116], [20, 56], [58, 56]], 8, cold ? '#3a3d45' : P.blkLo, '#50545e');
+  }
   // BOV
   if (has(c, 'bov')) { box(24, 80, 12, 12, P.alu, P.aluHi, P.aluLo); R(26 + (s.bovOpen ? 2 : 0), 83, 3, 6, P.aluHi); }
   // mariposa
@@ -567,8 +585,8 @@ function drawCorte(g) {
   // cabeza
   box(106, 40, 68, 40, P.steel, P.steelHi, P.steelLo);
   // pistón: elegir cilindro
-  const ci = g.cyl;
-  let phi = (g.thv - OFFS[ci]) % FOURPI; if (phi < 0) phi += FOURPI;
+  const ci = Math.min(g.cyl, E.n - 1);
+  let phi = (g.thv - E.offs[ci]) % FOURPI; if (phi < 0) phi += FOURPI;
   const th = phi % (2 * Math.PI);
   const pinY = CUT.crankY - (CUT.r * Math.cos(th) + Math.sqrt(CUT.l * CUT.l - Math.pow(CUT.r * Math.sin(th), 2)));
   const pistTop = Math.round(pinY - 8);
@@ -600,10 +618,12 @@ function drawCorte(g) {
   // puerto de escape
   pipe([[154, 76], [160, 70], [176, 64], [204, 64], [212, 70]], 9, heatCol(s.T3, P.rust), P.rustHi);
   // wastegate
+  if (!na) {
   pipe([[206, 66], [208, 108], [226, 110]], 5, heatCol(s.T3, P.rust));
   const wgA = s.wg;
   R(204, 84, 9, 3, P.aluHi); R(204 + Math.round(wgA * 3), 87, 3, 6 - Math.round(wgA * 3), P.yel);
   box(188, 82, 14, 14, P.alu, P.aluHi, P.aluLo); line(201, 89, 206, 86, P.aluHi);
+  } else pipe([[212, 70], [230, 88], [230, 172]], 8, s.running ? heatCol(s.T3 - 120, P.rust) : P.rust, P.rustHi);
   // pistón, biela, cigüeñal
   box(121, pistTop, 38, 14, P.alu, P.aluHi, P.aluLo);
   R(121, pistTop + 3, 38, 1, P.steelLo); R(121, pistTop + 6, 38, 1, P.steelLo);
@@ -617,13 +637,14 @@ function drawCorte(g) {
   disc(CUT.cx, pistTop + 8, 2, P.aluHi);
   // cárter con aceite
   box(104, 192, 72, 18, P.steel, P.steelHi, P.steelLo);
-  const ol = Math.max(0, Math.min(1, c.oil.level / 4.5));
+  const ol = Math.max(0, Math.min(1, c.oil.level / (E.e.oil * 1.12)));
   R(106, 208 - Math.round(ol * 14), 68, Math.round(ol * 14), c.oil.quality < 0.4 ? '#4a3a12' : P.oil);
   box(144, 194, 12, 10, P.aluLo, P.alu, P.steel);
-  pipe([[156, 200], [256, 200], [256, 82]], 2, P.oilDk);
+  if (!na) pipe([[156, 200], [256, 200], [256, 82]], 2, P.oilDk);
   // turbo: compresor y turbina
   const tH = has(c, 'turbo');
-  if (tH) {
+  if (na) { label(256, 66, 'ATMOSFÉRICO', P.grey, 5, 'center'); }
+  else if (tH) {
     disc(230, 72, 17, P.ink); disc(230, 72, 16, heatCol(s.Tt, P.rust)); disc(230, 72, 11, '#2a1a14');
     drawWheelBlades(230, 72, 10, g.turboAng, heatCol(s.Tt, P.rustHi), cfg.turboH);
     box(244, 64, 24, 16, P.steel, P.steelHi, P.steelLo);
@@ -665,32 +686,35 @@ function drawCorte(g) {
   }
   // tira de cilindros (orden de encendido)
   const names = ['ADM', 'COMP', 'EXP', 'ESC'];
-  for (let i = 0; i < 4; i++) {
-    const x = 4 + i * 22, y = 4;
-    let ph = (g.thv - OFFS[i]) % FOURPI; if (ph < 0) ph += FOURPI;
+  const cw = E.n <= 4 ? 22 : E.n <= 6 ? 15 : 11;
+  for (let i = 0; i < E.n; i++) {
+    const x = 4 + i * cw, y = 4;
+    let ph = (g.thv - E.offs[i]) % FOURPI; if (ph < 0) ph += FOURPI;
     const st = ph < Math.PI ? 2 : ph < 2 * Math.PI ? 3 : ph < 3 * Math.PI ? 0 : 1;
     const flash = s.running && st === 2 && ph < 1.0;
-    box(x, y, 20, 26, i === ci ? P.yel : P.steel, null, null, i === ci ? P.yelLo : P.ink);
-    R(x + 2, y + 2, 16, 14, flash ? (s.cylMis[i] ? '#3c4450' : P.hot) : '#1e2a38');
+    box(x, y, cw - 2, 26, i === ci ? P.yel : P.steel, null, null, i === ci ? P.yelLo : P.ink);
+    R(x + 2, y + 2, cw - 6, 14, flash ? (s.cylMis[i] ? '#3c4450' : P.hot) : '#1e2a38');
     const py = y + 4 + Math.round((1 - Math.cos(ph % (2 * Math.PI))) * 4);
-    R(x + 3, py, 14, 4, P.aluHi);
-    label(x + 10, y + 18, String(i + 1), i === ci ? P.ink : P.white, 5, 'center');
-    if (s.running) label(x + 10, y + 28, names[st], P.grey, 3.5, 'center');
+    R(x + 3, py, cw - 8, 4, P.aluHi);
+    label(x + (cw - 2) / 2, y + 18, String(i + 1), i === ci ? P.ink : P.white, 5, 'center');
+    if (s.running && E.n <= 4) label(x + 10, y + 28, names[st], P.grey, 3.5, 'center');
   }
-  label(4, 38, 'ORDEN 1-3-4-2', P.grey, 3.5);
+  label(4, 38, 'ORDEN ' + E.e.order.map(k => k + 1).join('-'), P.grey, 3.5);
   if (g.slow > 1.5 && s.om > 5) label(316, 226, 'VISTA LENTA ×' + Math.round(g.slow), P.grey, 4, 'right');
 
   if (g.labels) {
     label(294, 34, 'FILTRO', P.white, 4, 'center', 'rgba(0,0,0,.55)');
+    if (!na) {
     label(282, 94, 'COMPRESOR', '#9fd0f5', 4.5, 'center', 'rgba(0,0,0,.55)');
     label(222, 94, 'TURBINA', '#ffb37a', 4.5, 'center', 'rgba(0,0,0,.55)');
     label(256, 52, 'EJE', P.white, 4, 'center', 'rgba(0,0,0,.55)');
     label(192, 100, 'WASTEGATE', P.yel, 4, 'center', 'rgba(0,0,0,.55)');
     label(20, 208, 'INTER', '#9fd0f5', 4, 'center', 'rgba(0,0,0,.55)');
     label(30, 72, 'BOV', P.white, 4, 'left', 'rgba(0,0,0,.55)');
+    label(200, 190, 'ACEITE AL TURBO', P.oil, 4, 'center', 'rgba(0,0,0,.55)');
+    }
     label(65, 38, 'MARIPOSA', P.white, 4, 'center', 'rgba(0,0,0,.55)');
     label(232, 176, 'ESCAPE', '#c8ccd2', 4, 'left', 'rgba(0,0,0,.55)');
-    label(200, 190, 'ACEITE AL TURBO', P.oil, 4, 'center', 'rgba(0,0,0,.55)');
     label(140, 214, 'CÁRTER', P.oil, 4, 'center', 'rgba(0,0,0,.55)');
     label(140, 24, 'BUJÍA', P.white, 4, 'center', 'rgba(0,0,0,.55)');
   }
@@ -716,8 +740,8 @@ function drawWheelBlades(cx, cy, r, a, col, health) {
 function drawSelection(g) {
   const id = g.sel;
   if (!id || g.view === 'corte') return;
-  const d = SLOTS[id];
-  if (d.view !== g.view) return;
+  const d = g.car.defs[id];
+  if (!d || d.view !== g.view) return;
   const [x, y, w, h] = d.r;
   const on = Math.floor(g.t * 4) % 2;
   const col = on ? P.yel : P.white;
@@ -733,7 +757,7 @@ function render(g) {
   drawSelection(g);
   if (g.busy) {
     const b = g.busy;
-    const [x, y, w] = SLOTS[b.slot].r;
+    const [x, y, w] = (g.car.defs[b.slot] || { r: [140, 100, 40] }).r;
     box(x + w / 2 - 16, y - 8, 32, 6, P.ink);
     R(x + w / 2 - 15, y - 7, Math.round(30 * Math.min(1, b.t / b.dur)), 4, P.yel);
   }
@@ -745,8 +769,8 @@ function render(g) {
 /* hit test: la pieza visible más pequeña bajo el dedo */
 function hitTest(g, wxp, wyp) {
   let best = null, bestA = 1e9, bestD = 1e9;
-  for (const id in SLOTS) {
-    const d = SLOTS[id];
+  for (const id in g.car.defs) {
+    const d = g.car.defs[id];
     if (d.view !== g.view) continue;
     if (!slotVisible(g.car, id)) continue;
     const [x, y, w, h] = d.r;
@@ -761,7 +785,7 @@ function hitTest(g, wxp, wyp) {
   return best;
 }
 function hitCorte(wxp, wyp) {
-  if (wyp < 32 && wxp < 92) return { cyl: Math.max(0, Math.min(3, Math.floor((wxp - 4) / 22))) };
+  if (wyp < 32 && wxp < 92) { const n = nCyl(G.car) || 4, cw = n <= 4 ? 22 : n <= 6 ? 15 : 11; return { cyl: Math.max(0, Math.min(n - 1, Math.floor((wxp - 4) / cw))) }; }
   const zones = [
     ['filtroAire', 270, 2, 48, 32], ['turbo', 212, 54, 88, 36], ['mangIcFria', 6, 48, 30, 160], ['bov', 22, 78, 16, 16],
     ['mangIcCal', 270, 88, 20, 136], ['buj' , 132, 24, 16, 56], ['tapon', 102, 190, 76, 22], ['lineaTurbo', 250, 82, 12, 120],

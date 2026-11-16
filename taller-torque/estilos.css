@@ -85,7 +85,8 @@ button, input { font: inherit; color: inherit; }
 .vtab[aria-selected="true"] { background: var(--yel); color: var(--yel-ink); }
 
 .screen { position: relative; border: 3px solid #000; background: #000; box-shadow: 0 0 0 2px var(--line), 0 8px 0 rgba(0,0,0,.35); margin-top: -10px; }
-#cv { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: manipulation; cursor: crosshair; }
+#cv, #cv3 { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: manipulation; cursor: crosshair; }
+#cv3 { touch-action: none; cursor: grab; }
 
 .caption { position: absolute; left: 50%; top: 16%; background: rgba(8,9,12,.72); padding: 8px 12px; border-radius: 3px; transform: translateX(-50%); width: min(92%, 640px); text-align: center; font-family: var(--f-display); font-weight: 700;
   font-size: clamp(12px, 2.4vw, 19px); line-height: 1.3; color: var(--yel); text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000; pointer-events: none; text-wrap: balance; }
@@ -241,3 +242,46 @@ ul.bad li::marker { color: var(--red-2); } ul.warn li::marker { color: var(--yel
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
   .lamp.blink { animation: none; }
 }
+
+/* ---------- 3D, pista y paneles nuevos ---------- */
+.cam-hint.gone { opacity: 0; transition: opacity 400ms ease-out; }
+.cam-hint { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); margin: 0; font-family: var(--f-display); font-size: 10px; color: #d3d8de; background: rgba(8,9,12,.6); padding: 4px 7px; border-radius: 3px; pointer-events: none; }
+.race-hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 10px; font-family: var(--f-display); color: #fff; text-shadow: 2px 2px 0 #000; }
+.hud-top { display: flex; justify-content: space-between; font-size: clamp(14px, 3.4vw, 22px); }
+.hud-bot { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: end; }
+.hud-gear { font-size: clamp(34px, 9vw, 60px); color: var(--yel); line-height: 1; }
+.hud-spd { font-size: clamp(26px, 7vw, 46px); line-height: 1; }
+.hud-spd small { font-size: 12px; margin-left: 4px; }
+.hud-rpm { position: relative; height: 22px; background: rgba(0,0,0,.6); border: 2px solid #000; overflow: hidden; align-self: center; }
+.hud-rpm i { position: absolute; inset: 0; background: #6fbf5e; transform-origin: left; }
+.hud-rpm.shift i { background: var(--red-2); animation: blink 0.15s steps(2) infinite; }
+.hud-rpm b { position: relative; font-size: 11px; padding-left: 6px; line-height: 18px; font-weight: 400; }
+.race-box { background: var(--panel); border: 2px solid #000; border-radius: var(--r); padding: 10px; }
+.race-ctl { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; }
+.race-ctl .btn { min-height: 76px; font-size: 22px; }
+#rGas { font-size: 18px; }
+.race-menu { display: grid; gap: 8px; }
+.race-list { display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+.rv { display: flex; gap: 8px; align-items: center; padding: 8px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--r); font-size: 14px; min-height: 44px; }
+.rv input { width: 20px; height: 20px; accent-color: var(--yel); flex: none; }
+.race-big { font-family: var(--f-display); font-size: 40px; color: var(--yel); margin: 0; }
+.item.col { grid-template-columns: minmax(0, 1fr); }
+.item.col .row { display: flex; gap: 10px; align-items: center; }
+.item.car { grid-template-columns: 16px minmax(0, 1fr) auto; }
+.sw-car { width: 16px; height: 32px; border: 2px solid #000; border-radius: 3px; display: inline-block; flex: none; }
+.proc { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.proc li { color: var(--text-3); }
+.proc li span { color: var(--text-2); }
+.proc li.ok span { color: #9fd49a; text-decoration: line-through; }
+.proc li.cur span { color: var(--yel); }
+.proc em { display: inline-block; margin-left: 6px; font-style: normal; font-family: var(--f-display); font-size: 10px; color: var(--text-3); }
+.tune { display: grid; gap: 12px; }
+.tf { display: grid; gap: 4px; }
+.tf-n { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+.tf-n output { font-family: var(--f-display); color: var(--yel); font-size: 13px; }
+.tf input { width: 100%; accent-color: var(--yel); height: 30px; }
+.tf small { color: var(--text-3); font-size: 13px; }
+.bad { color: var(--red-2); }
+select { background: var(--panel-2); color: var(--text); border: 2px solid #000; border-radius: var(--r); min-height: 36px; padding: 4px 8px; font: inherit; font-size: 14px; max-width: 100%; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.vtab { font-size: 11px; padding: 9px 4px; }

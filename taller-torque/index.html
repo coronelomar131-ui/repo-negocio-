@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Taller Torque</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#121419">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="Simulador de taller mecánico en pixel art: motor 1.6 turbo con física real, herramientas, aprietes, escáner OBD-II y fallas de verdad.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,16 +39,21 @@
         <button class="vtab" role="tab" data-view="cofre" aria-selected="true">Cofre</button>
         <button class="vtab" role="tab" data-view="abajo" aria-selected="false">Abajo</button>
         <button class="vtab" role="tab" data-view="corte" aria-selected="false">En corte</button>
+        <button class="vtab" role="tab" data-view="pista" aria-selected="false">Pista</button>
       </nav>
       <div class="screen">
-        <canvas id="cv" width="960" height="720" aria-label="Motor del auto. Toca una pieza para seleccionarla."></canvas>
+        <canvas id="cv" width="960" height="720" aria-label="Motor del auto en corte."></canvas>
+        <canvas id="cv3" width="400" height="300" aria-label="Auto en 3D. Arrastra para girar, pellizca para acercar y toca una pieza para seleccionarla."></canvas>
+        <p id="camHint" class="cam-hint" hidden>Arrastra para girar · pellizca para acercar · toca una pieza</p>
+        <div id="raceHud" class="race-hud" hidden></div>
         <div id="caption" class="caption" hidden></div>
         <div id="toast" class="toast" role="status" aria-live="polite"></div>
       </div>
       <div id="selbar" class="selbar"></div>
       <div class="belt-wrap"><div id="belt" class="belt" aria-label="Caja de herramientas"></div></div>
 
-      <div class="controls">
+      <div id="raceBox" class="race-box" hidden></div>
+      <div class="controls" id="ctlBox">
         <div class="ctl key" role="group" aria-label="Llave">
           <span class="ctl-k">Llave</span>
           <button id="kOff" class="btn">Apagar</button>
@@ -62,7 +72,7 @@
           <button id="bLabels" class="btn on">Etiquetas</button>
         </div>
         <div class="ctl lab" id="labBox" hidden>
-          <label class="ctl-k" for="wgSpring">Resorte de wastegate <output id="wgV">0.70 bar</output></label>
+          <label class="ctl-k" for="wgSpring">Boost (laboratorio) <output id="wgV">0.70 bar</output></label>
           <input id="wgSpring" type="range" min="30" max="140" value="70">
         </div>
       </div>
@@ -85,12 +95,18 @@
         <button class="tab" role="tab" data-tab="banco" aria-selected="false">Banco</button>
         <button class="tab" role="tab" data-tab="tienda" aria-selected="false">Tienda</button>
         <button class="tab" role="tab" data-tab="escaner" aria-selected="false">Escáner</button>
+        <button class="tab" role="tab" data-tab="ecu" aria-selected="false">ECU</button>
+        <button class="tab" role="tab" data-tab="autos" aria-selected="false">Autos</button>
+        <button class="tab" role="tab" data-tab="negocio" aria-selected="false">Negocio</button>
       </nav>
       <section id="p-orden" class="panel" hidden></section>
       <section id="p-pieza" class="panel"></section>
       <section id="p-banco" class="panel" hidden></section>
       <section id="p-tienda" class="panel" hidden></section>
       <section id="p-escaner" class="panel" hidden></section>
+      <section id="p-ecu" class="panel" hidden></section>
+      <section id="p-autos" class="panel" hidden></section>
+      <section id="p-negocio" class="panel" hidden></section>
     </aside>
   </main>
 
@@ -123,11 +139,12 @@
     <div class="modal-card start-card">
       <p class="start-k">Simulador de taller mecánico</p>
       <h1 class="start-t"><span>TALLER</span><span>TORQUE</span></h1>
-      <p class="start-l">Un 1.6 turbo de 4 cilindros simulado con física: aire a presión, turbo, chispa, gasolina, aceite, refrigerante y batería. Cada cliente trae una falla real. Diagnostica, desarma en orden, aprieta a especificación y entrega.</p>
+      <p class="start-l">Motores de 4, 6 y 8 cilindros, turbo y atmosféricos, simulados con física: aire a presión, turbo, chispa, gasolina, aceite, refrigerante, batería, embrague, caja y llantas. Arregla autos de clientes, compra proyectos, cámbiales motor y caja, prográmales la computadora y llévalos a los arrancones.</p>
       <ul class="start-f">
+        <li>Taller en 3D: gira la cámara alrededor del motor y debajo del auto</li>
         <li>Herramienta correcta para cada tornillo y torquímetro de clic</li>
-        <li>Escáner OBD-II con códigos reales y datos en vivo</li>
-        <li>Vista en corte: aire, escape, turbo y aceite en movimiento</li>
+        <li>Escáner OBD-II y computadora editable: boost, mezcla, avance, corte, launch</li>
+        <li>Mercado, deshuesadero, empleados y cuarto de milla contra rivales</li>
         <li>Activa el sonido: cada cilindro suena por separado</li>
       </ul>
       <div class="start-a" id="startActions"></div>
@@ -139,6 +156,10 @@
 <script src="motor.js"></script>
 <script src="audio.js"></script>
 <script src="dibujo.js"></script>
+<script src="lib/three.min.js"></script>
+<script src="render3d.js"></script>
+<script src="negocio.js"></script>
+<script src="carrera.js"></script>
 <script src="juego.js"></script>
 </body>
 </html>

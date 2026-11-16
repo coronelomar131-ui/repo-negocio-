@@ -15,24 +15,8 @@ const G = {
   labels: true, useTq: true, cyl: 0, t: 0, thv: 0, thrNow: 0, turboAng: 0, beltPos: 0, slow: 1,
   busy: null, tqm: null, meter: null, tab: 'pieza', incidents: [], used: { aceite: 0, refrigerante: 0, arandela: 0 },
   seenCap: {}, capT: 0, dynoPts: [], lastPanel: '', comp: null,
+  cars: [], engines: [], cajas: [], emps: [], cands: [], day: 1, upg: new Set(), market: { cars: [], engines: [], cajas: [] }, revealed: {},
 };
-
-/* ---------- guardado ---------- */
-function save() {
-  if (G.mode !== 'taller') return;
-  try {
-    localStorage.setItem('tallerTorque.v1', JSON.stringify({
-      money: G.money, rep: G.rep, jobN: G.jobN, tools: [...G.tools],
-      bench: G.bench.filter(it => it.shop).map(it => ({ type: it.type, cost: it.cost })),
-    }));
-  } catch (e) { /* sin almacenamiento: se juega igual */ }
-}
-function load() {
-  try {
-    const d = JSON.parse(localStorage.getItem('tallerTorque.v1') || 'null');
-    return d && typeof d.money === 'number' ? d : null;
-  } catch (e) { return null; }
-}
 
 /* ---------- utilidades ---------- */
 function toast(msg, kind) {
@@ -62,38 +46,44 @@ function partName(type) { return (PARTS[type] && PARTS[type].name) || type; }
 function condWord(h) { return h >= 0.85 ? 'Nueva / como nueva' : h >= 0.6 ? 'Usada, en buen estado' : h >= 0.35 ? 'Gastada' : 'Dañada'; }
 
 /* ---------- trabajos ---------- */
-function newJob(forceId) {
+function newJob(forceId, model) {
+  if (G.cars.length >= capacity()) { G.job = null; return false; }
   G.jobN++;
-  const c = newCar();
+  const ids = Object.keys(MODELOS);
+  model = model || (G.jobN <= 2 ? 'torque' : ids[RNG.int(ids.length)]);
+  const c = newCar(model);
+  c.owner = 'cliente';
   c.km = Math.round(55000 + Math.random() * 110000);
   c.oil.quality = 0.6 + Math.random() * 0.25;
-  c.oil.level = 3.6 + Math.random() * 0.3;
+  c.oil.level = oilCap(c) - 0.4 + Math.random() * 0.3;
   c.slots.bateria.item.health = 0.8 + Math.random() * 0.2;
-  for (let i = 1; i <= 4; i++) c.slots['buj' + i].item.health = 0.75 + Math.random() * 0.2;
+  for (let i = 1; i <= nCyl(c); i++) c.slots['buj' + i].item.health = 0.75 + Math.random() * 0.2;
   c.slots.balataI.item.thick = 6.5 + Math.random() * 3; c.slots.balataD.item.thick = c.slots.balataI.item.thick - Math.random();
   c.slots.filtroAire.item.health = 0.6 + Math.random() * 0.3;
   c.slots.banda.item.health = 0.6 + Math.random() * 0.35;
   let def;
+  const avail = jobsFor(c);
   if (forceId) def = JOBS.find(j => j.id === forceId);
   else {
     const easy = ['filtroAire', 'servicio', 'bateria', 'banda', 'bobina'];
-    const pool = G.jobN <= 3 ? JOBS.filter(j => easy.includes(j.id)) : JOBS;
+    const pool = G.jobN <= 3 ? avail.filter(j => easy.includes(j.id)) : avail;
     do { def = pool[RNG.int(pool.length)]; } while (G.job && def.id === G.job.def.id && pool.length > 1);
   }
   def.setup(c, RNG);
   // El cliente llega manejando: el motor viene caliente y con sus códigos guardados
   preDrive(c, def);
-  G.car = c;
+  G.cars.push(c);
   G.job = {
-    def, id: G.jobN, client: CLIENTES[RNG.int(CLIENTES.length)], auto: AUTOS[RNG.int(AUTOS.length)],
-    queja: def.quejas[RNG.int(def.quejas.length)], labor: def.labor,
-    dmg0: { ...c.dmg }, start: Date.now(),
+    def, id: G.jobN, client: CLIENTES[RNG.int(CLIENTES.length)], auto: MODELOS[c.model].name + ' ' + MOTORES[c.engId].short,
+    queja: def.quejas[RNG.int(def.quejas.length)], labor: Math.round(def.labor * (G.upg.has('letrero') ? 1.2 : 1)),
+    dmg0: { ...c.dmg }, start: Date.now(), carUid: c.uid,
   };
-  G.sel = null; G.key = 0; G.thr = 0; G.dyno = false; G.incidents = []; G.used = { aceite: 0, refrigerante: 0, arandela: 0 };
-  G.seenCap = {}; G.meter = null; G.comp = null; G.dynoPts = [];
+  setCar(c);
+  G.thr = 0; G.incidents = []; G.used = { aceite: 0, refrigerante: 0, arandela: 0 };
+  G.seenCap = {}; G.dynoPts = [];
   $('#thr').value = 0;
-  PARTS_FX.length = 0;
   refreshAll();
+  return true;
 }
 function preDrive(c, def) {
   const inp = { key: 1, starter: true, thr: 0, dyno: false };
@@ -105,12 +95,12 @@ function preDrive(c, def) {
   }
   inp.key = 0; step(1);
   c.sim.events.length = 0;
-  c.sim.misWin = [[], [], [], []];
+  c.sim.misWin = c.sim.misWin.map(() => []);
   if (def.id === 'termoCerrado') { c.sim.ECT = 108; c.sim.Toil = 100; }
   if (def.id === 'bateria' || def.id === 'marcha') { c.sim.ECT = 22; c.sim.Toil = 22; c.sim.Tt = PH.Ta; c.sim.Tb = PH.Ta; }
   c.cool.level = def.id === 'termoCerrado' ? 0.8 : 1;
   c.dmg = { bear: 0, knock: 0, hg: 0, elec: 0 };
-  if (c.slots.turbo.item && def.id !== 'turbo') c.slots.turbo.item.health = 1;
+  if (c.slots.turbo && c.slots.turbo.item && def.id !== 'turbo') c.slots.turbo.item.health = 1;
 }
 
 /* ---------- reglas: quitar / instalar ---------- */
@@ -163,7 +153,7 @@ function doRemove(id) {
       const it = c.slots[id].item;
       c.slots[id].item = null;
       if (it.type === 'tapon') it.washer = 'usada';
-      it.fromJob = G.job.id;
+      it.fromJob = G.job ? G.job.id : 0;
       G.bench.push(it);
     }
     AUDIO.blip('clic');
@@ -181,7 +171,7 @@ function doInstall(id, uid) {
     const idx = G.bench.findIndex(b => b.uid === uid);
     if (idx < 0) return;
     it = G.bench[idx];
-    if (it.type !== d.type) { toast('Esa pieza no va ahí.', 'warn'); return; }
+    if (!slotAccepts(d, it.type)) { toast('Esa pieza no va ahí.', 'warn'); return; }
     G.bench.splice(idx, 1);
   }
   const finish = tq => {
@@ -201,7 +191,7 @@ function doInstall(id, uid) {
     AUDIO.blip('clic');
     refreshAll();
   };
-  if (d.torque > 0) openTorque(id, it, finish);
+  if (d.torque > 0) openTorque(id, it, finish, d);
   else startBusy(id, 0.5, () => finish({ lo: 1, hi: 1, ok: true }));
 }
 
@@ -212,11 +202,11 @@ function boltLayout(pattern, n) {
   if (n === 2) return [[50, 80], [110, 80]];
   return [[80, 80]];
 }
-function openTorque(id, it, finish) {
-  const d = SLOTS[id];
+function openTorque(id, it, finish, d) {
+  d = d || SLOTS[id];
   const n = d.bolts || 1;
   G.tqm = {
-    id, it, finish, spec: d.torque, n, bolts: Array.from({ length: n }, () => ({ v: 0, clicked: false })),
+    id, def: d, it, finish, spec: d.torque, n, bolts: Array.from({ length: n }, () => ({ v: 0, clicked: false })),
     cur: 0, holding: false, order: [], useTq: G.tools.has('torquimetro') && G.useTq, broke: false, pos: boltLayout(d.pattern, n),
   };
   const m = $('#torque');
@@ -238,7 +228,7 @@ function closeTorque(cancel) {
   if (cancel) { if (T.it) G.bench.push(T.it); refreshAll(); return; }
   const r = T.bolts.map(b => b.v / T.spec);
   let ok = true;
-  const d = SLOTS[T.id];
+  const d = T.def;
   if ((d.pattern === 'rueda' || d.pattern === 'cuadro') && T.order.length >= 4) {
     const o = T.order;
     ok = o[1] === (o[0] + 2) % 4 && o[3] === (o[2] + 2) % 4;
@@ -247,14 +237,15 @@ function closeTorque(cancel) {
 }
 function torqueTick(dt) {
   const T = G.tqm;
-  if (!T || !T.holding || T.broke) return;
+  if (!T || !T.holding) return;
   const b = T.bolts[T.cur];
+  if (b.broke) { T.holding = false; return; }
   const prev = b.v;
   b.v += T.spec * 0.7 * (1 + 0.5 * Math.min(1.5, b.v / T.spec)) * dt;
   if (T.useTq && prev < T.spec && b.v >= T.spec && !b.clicked) { b.clicked = true; AUDIO.blip('clic'); vibrate(35); flashTq(); }
   if (!G.tq_r || G.t - G.tq_r > 0.09) { G.tq_r = G.t; AUDIO.blip('ratchet'); }
   if (b.v > T.spec * 1.8) {
-    T.broke = true; T.holding = false;
+    T.broke = true; b.broke = true; b.v = T.spec * 1.8; T.holding = false;
     incident('¡Crac! Se barrió la cuerda por apretar de más. Hay que poner un inserto.', 600, 0.4);
   }
   drawTorque();
@@ -292,13 +283,14 @@ function tqSelectBolt(i) {
   T.cur = i; drawTorque();
 }
 function tqPress(on) {
-  const T = G.tqm; if (!T || T.broke) return;
+  const T = G.tqm; if (!T) return;
+  if (on && T.bolts[T.cur].broke) { toast('Ese tornillo ya se barrió. Aprieta los demás.', 'warn'); return; }
   if (on) {
     T.holding = true;
     if (T.order[T.order.length - 1] !== T.cur && T.bolts[T.cur].v === 0) T.order.push(T.cur);
   } else if (T.holding) {
     T.holding = false;
-    const d = SLOTS[T.id];
+    const d = T.def;
     if (d.pattern !== 'rueda') {
       const next = nextBolt(T);
       if (next >= 0 && T.bolts[T.cur].v >= T.spec * 0.3) T.cur = next;
@@ -307,7 +299,7 @@ function tqPress(on) {
   }
 }
 function nextBolt(T) {
-  const seq = SLOTS[T.id].pattern === 'cuadro' ? [0, 2, 1, 3] : T.bolts.map((_, i) => i);
+  const seq = T.def.pattern === 'cuadro' ? [0, 2, 1, 3] : T.bolts.map((_, i) => i);
   for (const i of seq) if (T.bolts[i].v < T.spec * 0.3) return i;
   return -1;
 }
@@ -411,14 +403,18 @@ function addFluid(kind) {
 /* ---------- entrega ---------- */
 function deliver() {
   const c = G.car, s = c.sim, j = G.job;
+  if (!j || c.uid !== j.carUid) { toast('Este no es el auto del cliente. Ve a Autos y súbelo al elevador.', 'warn'); return; }
   if (s.om > 1) { toast('Apaga el motor antes de entregar.', 'warn'); return; }
   if (c.lift) { toast('Baja el elevador antes de entregar.', 'warn'); return; }
   const jobIssues = j.def.check(c);
   const issues = [], warns = [];
   let pen = 0, critical = false;
+  if (!c.engId) { issues.push('¡Le falta el motor!'); critical = true; }
+  if (!c.caja || c.caja.health <= 0) { issues.push(c.caja ? 'La caja quedó rota.' : '¡Le falta la caja!'); critical = true; }
+  if (c.ecu.prog !== c.engId) { issues.push('La computadora no está programada para el motor.'); critical = true; }
   for (const id in SLOTS) {
     const d = SLOTS[id];
-    if (d.check) continue;
+    if (d.check || d.macro) continue;
     if (!has(c, id)) { issues.push((d.conn ? 'Quedó desconectada: ' : 'Falta: ') + d.name); critical = true; continue; }
     const tq = c.slots[id].tq;
     if (tq && d.torque > 0) {
@@ -429,8 +425,9 @@ function deliver() {
       if (!tq.ok && d.pattern === 'cuadro') { warns.push('Turbo: tuercas sin apretar en cruz, puede haber fuga de escape.'); pen += 100; }
     }
   }
-  if (c.oil.level < 3.0) { issues.push(`Aceite bajo: ${c.oil.level.toFixed(1)} L (mínimo 3.0)`); }
-  if (c.oil.level > 4.4) { warns.push(`Aceite de más: ${c.oil.level.toFixed(1)} L (máximo 4.0). Puede espumar.`); pen += 100; }
+  const cap = oilCap(c);
+  if (c.oil.level < cap - 1) { issues.push(`Aceite bajo: ${c.oil.level.toFixed(1)} L (mínimo ${(cap - 1).toFixed(1)})`); }
+  if (c.oil.level > cap + 0.4) { warns.push(`Aceite de más: ${c.oil.level.toFixed(1)} L (máximo ${cap.toFixed(1)}). Puede espumar.`); pen += 100; }
   if (c.cool.level < 0.85) issues.push(`Refrigerante bajo (${Math.round(c.cool.level * 100)}%)`);
   if (c.seized) { issues.push('El motor se desvieló en el taller.'); critical = true; pen += 35000; }
   const dHg = c.dmg.hg - j.dmg0.hg, dB = c.dmg.bear - j.dmg0.bear, dK = c.dmg.knock - j.dmg0.knock;
@@ -459,6 +456,9 @@ function deliver() {
   }
   if (G.mode === 'taller') { G.money += pay; G.rep = Math.max(0, Math.min(5, G.rep + repD)); }
   showResult({ j, fixed, jobIssues, issues, warns, pay, parts, billed, verdict, repD, wasted, codes });
+  G.cars = G.cars.filter(x => x !== c);
+  G.job = null;
+  setCar(G.cars.find(x => x.owner === 'mio') || null);
   save();
 }
 function showResult(r) {
@@ -481,7 +481,7 @@ function showResult(r) {
     <div class="m-actions"><button class="btn primary" id="btnNext">Siguiente cliente</button></div>
   </div>`;
   m.hidden = false;
-  $('#btnNext').onclick = () => { m.hidden = true; newJob(); };
+  $('#btnNext').onclick = () => { m.hidden = true; if (!newJob()) { toast('El garaje está lleno: no aceptaste más clientes por hoy.', 'warn'); if (!G.car && G.cars.length) setCar(G.cars[0]); refreshAll(); } };
 }
 
 /* ---------- interfaz: barras y paneles ---------- */
@@ -523,6 +523,7 @@ function setTab(t) {
 }
 function selectSlot(id) {
   G.sel = id;
+  if (typeof setSelected3D === 'function' && R3.ok) setSelected3D(id);
   if (G.meter && G.meter.slot !== id) { G.meter = null; G.comp = null; }
   renderSelbar();
   if (G.tab !== 'pieza' && G.tab !== 'escaner') setTab('pieza'); else refreshPanel(true);
@@ -556,7 +557,11 @@ function renderSelbar() {
 }
 
 function refreshPanel(force) {
-  if (G.tab === 'pieza') renderPieza();
+  if (!G.car && !['autos', 'negocio', 'tienda'].includes(G.tab)) { const el = $('#p-' + G.tab); if (el) el.innerHTML = '<p class="muted">No hay auto en el elevador. Ve a Autos.</p>'; return; }
+  if (G.tab === 'ecu') renderECU();
+  else if (G.tab === 'autos') renderAutos();
+  else if (G.tab === 'negocio') renderNegocio();
+  else if (G.tab === 'pieza') renderPieza();
   else if (G.tab === 'orden') renderOrden();
   else if (G.tab === 'banco') renderBanco();
   else if (G.tab === 'tienda') renderTienda();
@@ -573,6 +578,8 @@ function renderPieza() {
     return;
   }
   const d = SLOTS[id];
+  if (!d) { G.sel = null; renderPieza(); return; }
+  if (d.macro) { el.innerHTML = `<h2 class="p-title">${esc(d.name)}</h2>${d.info ? `<p class="note">${esc(d.info)}</p>` : ''}` + renderMacro(id); return; }
   const it = c.slots[id].item;
   const pd = d.type ? PARTS[d.type] : null;
   let body = `<h2 class="p-title">${esc(d.name)}</h2>`;
@@ -598,7 +605,7 @@ function renderPieza() {
   if (G.tool === 'compresimetro' && id.startsWith('buj') && !has(c, id)) acts += `<button class="btn" data-act="measure">Enroscar compresímetro</button>`;
   body += `<div class="acts">${acts}</div>`;
   if (!d.conn && !d.check && !has(c, id)) {
-    const fits = G.bench.filter(b => b.type === d.type);
+    const fits = G.bench.filter(b => slotAccepts(d, b.type));
     body += `<h3>Instalar aquí</h3>`;
     if (!fits.length) body += `<p class="muted">No tienes ${esc(partName(d.type).toLowerCase())} en el banco. <button class="link" data-act="shop" data-type="${d.type}">Comprar una (${fmt$(G.mode === 'lab' ? 0 : PARTS[d.type].price)})</button></p>`;
     else body += `<ul class="items">${fits.map(b => itemRow(b, `<button class="btn primary sm" data-act="install" data-uid="${b.uid}">Instalar</button>`)).join('')}</ul>`;
@@ -750,12 +757,14 @@ function setG(k, v, u, frac, state) {
   el.dataset.s = state || '';
 }
 function updateDash() {
-  const c = G.car, s = c.sim, rpm = s.om * 9.5493;
+  const c = G.car; if (!c) return;
+  const s = c.sim, rpm = s.om * 9.5493;
+  const red = c.engId ? MOTORES[c.engId].redline : 7000;
   const boost = (s.Pc - PH.Pa) / 1e5;
-  setG('rpm', rpm.toFixed(0), 'rpm', rpm / 7000, rpm > 6500 ? 'hot' : '');
-  setG('boost', (boost >= 0 ? '+' : '') + boost.toFixed(2), 'bar', (boost + 0.8) / 2.2, boost > (c.wgSpring / 1e5) + 0.2 ? 'hot' : '');
-  setG('tq', s.running ? Math.max(0, s.tqAvg).toFixed(0) : '0', 'N·m', s.tqAvg / 260);
-  setG('hp', s.running ? s.hp.toFixed(0) : '0', 'hp', s.hp / 200);
+  setG('rpm', rpm.toFixed(0), 'rpm', rpm / (red + 500), rpm > red - 300 ? 'hot' : '');
+  setG('boost', (boost >= 0 ? '+' : '') + boost.toFixed(2), 'bar', (boost + 0.8) / 2.8, boost > ((s.boostTarget || 7e4) / 1e5) + 0.2 ? 'hot' : '');
+  setG('tq', s.running ? Math.max(0, s.tqAvg).toFixed(0) : '0', 'N·m', s.tqAvg / 480);
+  setG('hp', s.running ? s.hp.toFixed(0) : '0', 'hp', s.hp / 400);
   setG('ect', s.ECT.toFixed(0), '°C', (s.ECT - 20) / 110, s.ECT > 110 ? 'hot' : s.ECT < 70 ? 'cold' : '');
   setG('oil', s.oilP.toFixed(1), 'bar', s.oilP / 5, s.running && s.oilP < 0.5 ? 'hot' : '');
   setG('volt', s.V.toFixed(1), 'V', (s.V - 8) / 7, s.running && s.V < 13.2 ? 'hot' : '');
@@ -765,7 +774,7 @@ function updateDash() {
   setG('egt', (s.T3 - 273).toFixed(0), '°C', (s.T3 - 300) / 800, s.T3 > 1200 ? 'hot' : '');
   const L = (k, on, blink) => { const el = document.getElementById('l-' + k); el.classList.toggle('on', !!on); el.classList.toggle('blink', !!blink); };
   const misNow = s.running && s.misCount.some(x => x > 0.12);
-  L('mil', s.ecuOn && (Object.keys(c.ecu.codes).length > 0 || (!s.running && s.om < 1)), misNow);
+  L('mil', s.ecuOn && (!c.ecu.tune || c.ecu.tune.mil) && (Object.keys(c.ecu.codes).length > 0 || (!s.running && s.om < 1)), misNow);
   L('bat', s.ecuOn && (!s.running || s.V < 13.0));
   L('oilL', s.ecuOn && s.oilP < 0.4);
   L('tmp', s.ecuOn && s.ECT > 112, s.ECT > 118);
@@ -790,7 +799,12 @@ function updateMeter() {
 
 /* ---------- controles y botones ---------- */
 function syncButtons() {
-  const c = G.car;
+  const c = G.car || { lift: false };
+  const pista = G.view === 'pista';
+  $('#ctlBox').hidden = pista; $('#raceBox').hidden = !pista; $('#selbar').hidden = pista; $('.belt-wrap').hidden = pista;
+  const td = G.view === 'cofre' || G.view === 'abajo';
+  $('#cv').hidden = (td && R3.ok) || pista; $('#cv3').hidden = !((td && R3.ok) || pista);
+  $('#camHint').hidden = !(td && R3.ok);
   $('#kOff').classList.toggle('on', G.key === 0);
   $('#kOn').classList.toggle('on', G.key >= 1);
   $('#bLift').textContent = c.lift ? 'Elevador: arriba' : 'Elevador: abajo';
@@ -802,12 +816,40 @@ function syncButtons() {
 }
 function syncViews() {
   $$('.vtab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === G.view)));
+  if (G.view === 'cofre' || G.view === 'abajo') setView3D(G.view);
+  if (G.view === 'pista') { if (RACE.state !== 'run' && RACE.state !== 'stage') { RACE.state = 'menu'; RACE.V = null; } renderRaceBox(); }
+  else if (RACE.V && RACE.state !== 'menu') { RACE.state = 'menu'; RACE.V = null; G.full = false; }
   syncButtons();
 }
 
 function onAction(act, el) {
   const id = G.sel;
+  const uid = el && el.dataset.uid ? Number(el.dataset.uid) : 0;
   switch (act) {
+    case 'step': doStep(el.dataset.step); return;
+    case 'proc': startProc(el.dataset.proc); return;
+    case 'cancelproc': G.car.proc = null; refreshAll(); return;
+    case 'mount': { const i = G.engines.findIndex(e => e.uid === uid); if (i < 0) return; const nt = installCheckEngine(G.car, G.engines[i]); if (nt.length) { toast(nt[0].text, 'warn'); return; } if (!G.upg.has('pluma')) { toast('Necesitas la pluma para motor (Negocio → Mejoras).', 'warn'); return; } const eng = G.engines.splice(i, 1)[0]; startProc('meterMotor', { eng }); return; }
+    case 'mountcaja': { const i = G.cajas.findIndex(e => e.uid === uid); if (i < 0) return; const nt = installCheckCaja(G.car, G.cajas[i]); if (nt.length) { toast(nt[0].text, 'warn'); return; } if (!G.upg.has('pluma')) { toast('Necesitas el gato de transmisión (Negocio → Mejoras → pluma).', 'warn'); return; } const caja = G.cajas.splice(i, 1)[0]; startProc('meterCaja', { caja }); return; }
+    case 'mod': payMod(el.dataset.mod, +el.dataset.size); return;
+    case 'flash': flashECU(); return;
+    case 'reflash': reflash(); return;
+    case 'work': { const c = G.cars.find(x => x.uid === uid); if (!c) return; if (G.car && G.car.sim.om > 1) { toast('Apaga el motor del auto actual.', 'warn'); return; } setCar(c); G.view = 'cofre'; syncViews(); refreshAll(); return; }
+    case 'sell': sellCar(uid); return;
+    case 'sellmotor': sellPart('motor', uid); return;
+    case 'sellcaja': sellPart('caja', uid); return;
+    case 'buyauto': buyListing('auto', +el.dataset.i); return;
+    case 'buymotor': buyListing('motor', +el.dataset.i); return;
+    case 'buycaja': buyListing('caja', +el.dataset.i); return;
+    case 'closeday': closeDay(); return;
+    case 'hire': hire(uid); return;
+    case 'fire': fireEmp(uid); return;
+    case 'upg': buyUpg(el.dataset.k); return;
+    case 'racego': raceStart(); return;
+    case 'racemenu': RACE.state = 'menu'; RACE.V = null; renderRaceBox(); return;
+    case 'raceexit': RACE.state = 'menu'; RACE.V = null; G.full = false; G.view = 'cofre'; syncViews(); return;
+    case 'shiftup': raceShift(1); return;
+    case 'shiftdn': raceShift(-1); return;
     case 'remove': doRemove(id); break;
     case 'connect': doInstall(id, null); break;
     case 'measure': doMeasure(id); break;
@@ -820,7 +862,7 @@ function onAction(act, el) {
     case 'buytool': buyTool(el.dataset.tool); break;
     case 'deliver': deliver(); break;
     case 'hint': if (G.mode === 'taller') { G.money -= 100; refreshStats(); } toast('El maestro dice: ' + G.job.def.pista, 'info'); break;
-    case 'clear': if (G.car.sim.ecuOn) { G.car.ecu.codes = {}; G.car.ecu.timers = {}; G.car.sim.misWin = [[], [], [], []]; G.car.sim.misCount = [0, 0, 0, 0]; toast('Códigos borrados. Si la falla sigue, van a volver.', 'info'); refreshPanel(true); } break;
+    case 'clear': if (G.car.sim.ecuOn) { G.car.ecu.codes = {}; G.car.ecu.timers = {}; G.car.sim.misWin = G.car.sim.misWin.map(() => []); G.car.sim.misCount = G.car.sim.misCount.map(() => 0); toast('Códigos borrados. Si la falla sigue, van a volver.', 'info'); refreshPanel(true); } break;
     case 'scrap': {
       const old = G.bench.filter(b => !b.shop && !PARTS[b.type].consumable);
       const val = Math.round(old.reduce((a, b) => a + (PARTS[b.type].price || 0) * 0.05, 0));
@@ -859,14 +901,20 @@ function loop(ts) {
   const dt = Math.min(0.05, (ts - lastT) / 1000 || 0.016);
   lastT = ts;
   G.t += dt;
-  const c = G.car, s = c.sim;
+  const c = G.car;
+  if (!c) { if (R3.ok && (G.view === 'cofre' || G.view === 'abajo')) { R3.renderer.clear(); } requestAnimationFrame(loop); return; }
+  SLOTS = c.defs;
+  const s = c.sim;
   // acelerador
   const target = G.full ? 1 : G.thr;
   G.thrNow += (target - G.thrNow) * Math.min(1, dt * 12);
   if (G.key === 0) G.starter = false;
-  const inp = { key: G.key, starter: G.starter && G.key >= 1, thr: G.thrNow, dyno: G.dyno };
+  const racing = G.view === 'pista' && RACE.V && RACE.state !== 'menu';
+  if (racing) raceTick(dt);
+  const inp = { key: G.key, starter: G.starter && G.key >= 1, thr: G.thrNow, dyno: G.dyno && G.upg.has('dinamo') || (G.dyno && G.mode === 'lab'), veh: racing ? RACE.V : null };
   if (inp.starter && c.cfg && c.cfg.block && !s.running) { toast(c.cfg.block, 'warn'); G.starter = false; inp.starter = false; }
   simFrame(c, inp, dt);
+  if (racing && RACE.state === 'stage' && RACE.V) { RACE.V.v = 0; RACE.V.x = 0; RACE.V.locked = false; }
   // eventos del motor
   for (const e of s.events) handleEvent(e);
   s.events.length = 0;
@@ -877,7 +925,7 @@ function loop(ts) {
     if (G.busy.t >= G.busy.dur) { const b = G.busy; G.busy = null; b.done(); }
   }
   torqueTick(dt);
-  if (!has(c, 'tapon') && c.oil.level <= 0.11 && !G.drainMsg) { G.drainMsg = true; toast('Ya terminó de escurrir el aceite. Pon el tapón con arandela nueva.', 'info'); }
+  if (c.engId && !c.proc && !has(c, 'tapon') && c.oil.level <= 0.11 && !G.drainMsg) { G.drainMsg = true; toast('Ya terminó de escurrir el aceite. Pon el tapón con arandela nueva.', 'info'); }
   if (has(c, 'tapon')) G.drainMsg = false;
   // compresímetro
   if (G.comp && s.cranking) {
@@ -892,14 +940,16 @@ function loop(ts) {
   G.thv += Math.min(realStep, maxStep);
   G.turboAng += Math.min(s.wt * dt * 0.02, 0.9);
   G.beltPos += s.om * dt * 1.2;
-  stepFx(G, dt);
-  resizeDraw();
-  render(G);
+  if (G.view === 'corte' || !R3.ok && G.view !== 'pista') { stepFx(G, dt); resizeDraw(); render(G); }
+  else if (G.view === 'pista') { frameRace(dt); updateRaceHud(); }
+  else { R3.view = G.view; frame3D(G, dt); }
   // audio
   if (AUDIO.on) {
     const cfg = c.cfg || {};
     AUDIO.send({
-      rpm: s.om * 9.5493, amps: s.running ? s.cylAmp.map((a, i) => s.cylMis[i] ? 0 : Math.max(0.15, a)) : [0, 0, 0, 0],
+      rpm: s.om * 9.5493, amps: s.running ? s.cylAmp.map((a, i) => s.cylMis[i] ? 0 : Math.max(0.15, a)) : s.cylAmp.map(() => 0),
+      fires: cfg.E ? cfg.E.offs.map(o => o / FOURPI) : undefined, big: cfg.E ? Math.min(1.6, Math.pow(cfg.E.k, 0.35)) : 1, low: cfg.E ? (cfg.E.n >= 8 ? 0.8 : cfg.E.n >= 6 ? 0.9 : 1) : 1,
+      popN: s.popT,
       thr: G.thrNow, turbo: s.wt * 9.5493 / 1000, boost: (s.Pc - PH.Pa) / 1e5, starter: s.starterOn ? 1 : 0,
       squeal: s.om > 5 ? (cfg.squeal || 0) * (s.starterOn || Math.abs(s.tqAvg) > 60 || s.runTime < 3 ? 1 : 0.35) : 0,
       hiss: s.mLeak > 0.003 && s.Pc > PH.Pa + 5000 ? Math.min(1, s.mLeak * 25) : 0,
@@ -912,7 +962,7 @@ function loop(ts) {
   if (dashT > 0.1) {
     dashT = 0; updateDash();
     if (G.tab === 'escaner') { if (s.ecuOn !== G.lastEcu || Object.keys(c.ecu.codes).join() !== ($('#p-escaner').dataset.k || '')) { G.lastEcu = s.ecuOn; renderEscaner(true); } else updateLive(); }
-    if (G.dyno && G.thrNow > 0.95 && s.running) recordDyno();
+    if (inp.dyno && G.thrNow > 0.95 && s.running) recordDyno();
     warnings();
     if (G.view === 'abajo' || G.tab === 'pieza') { const sig = c.oil.level.toFixed(1) + c.cool.level.toFixed(2); if (sig !== G.fsig) { G.fsig = sig; } }
   }
@@ -961,30 +1011,33 @@ function drawDyno() {
 
 /* ---------- arranque ---------- */
 function startGame(mode) {
-  G.mode = mode;
+  G.mode = mode === 'lab' ? 'lab' : 'taller';
   G.tools = new Set(Object.keys(TOOLS).filter(t => TOOLS[t].start));
-  G.bench = [];
+  G.bench = []; G.cars = []; G.engines = []; G.cajas = []; G.emps = []; G.cands = []; G.upg = new Set(); G.day = 1; G.job = null;
   if (mode === 'lab') {
-    G.tools = new Set(Object.keys(TOOLS)); G.money = 0; G.rep = 5;
-    G.jobN = 0; newJob('servicio');
-    G.job.queja = 'Laboratorio: auto sano para experimentar. Ajusta la wastegate, quita la BOV o una manguera y mira qué pasa.';
-    G.job.labor = 0;
-    G.car.oil.quality = 0.95; G.car.oil.level = 3.9; G.car.slots.filtroAceite.item.health = 1;
-    G.car.ecu.codes = {};
-    G.view = 'corte';
+    G.tools = new Set(Object.keys(TOOLS)); G.money = 0; G.rep = 5; G.jobN = 0;
+    G.upg = new Set(Object.keys(MEJORAS));
+    for (const m of ['torque', 'halcon', 'clasico']) { const c = newCar(m); c.owner = 'mio'; c.oil.quality = 0.95; G.cars.push(c); }
+    G.engines.push(makeEngine('i4_20t'), makeEngine('v8_50'));
+    G.cajas.push(makeCaja('m6f'), makeCaja('seq6'));
+    for (const t of ['turboGrande', 'inyectorAlto', 'inyectorAlto', 'inyectorAlto', 'inyectorAlto', 'filtroAlto']) G.bench.push(newItem(t, { shop: true, cost: 0 }));
+    setCar(G.cars[0]);
+    genMarket(); genCands();
+    G.view = 'cofre';
   } else {
     const d = load();
-    if (d && mode === 'continuar') {
-      G.money = d.money; G.rep = d.rep; G.jobN = d.jobN; d.tools.forEach(t => G.tools.add(t));
-      G.bench = (d.bench || []).map(b => newItem(b.type, { shop: true, cost: b.cost }));
-    } else { G.money = 6000; G.rep = 3; G.jobN = 0; }
-    G.mode = 'taller';
-    G.bench.push(newItem('aceite', { shop: true, cost: PARTS.aceite.price }));
+    if (d && mode === 'continuar') restore(d);
+    else {
+      G.money = 9000; G.rep = 3; G.jobN = 0;
+      G.bench.push(newItem('aceite', { shop: true, cost: PARTS.aceite.price }));
+      genMarket(); genCands();
+      newJob();
+    }
     G.view = 'cofre';
-    newJob();
   }
   $('#start').hidden = true;
-  syncViews(); refreshAll(); setTab(mode === 'lab' ? 'pieza' : 'orden');
+  syncViews(); refreshAll(); setTab(mode === 'lab' ? 'autos' : 'orden');
+  save();
 }
 
 function bind() {
@@ -1014,7 +1067,13 @@ function bind() {
   // llave
   $('#kOff').onclick = () => { G.key = 0; syncButtons(); };
   $('#kOn').onclick = () => { G.key = 1; syncButtons(); };
-  const hold = (el, on, off) => {
+  R3.onTap = (nx, ny) => {
+    if (G.view === 'pista') return;
+    const id = pick3D(nx, ny, G.view);
+    if (id) { selectSlot(id); setSelected3D(id); AUDIO.blip('ratchet'); }
+  };
+  const hold = holdBtn;
+  const _unused = (el, on, off) => {
     el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (er) { } on(); });
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, off));
     el.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); on(); } });
@@ -1062,11 +1121,13 @@ function bind() {
   $('#tqDone').onclick = () => closeTorque(false);
   $('#tqCancel').onclick = () => closeTorque(true);
   // laboratorio
-  $('#wgSpring').oninput = e => { G.car.wgSpring = e.target.value * 1000; $('#wgV').textContent = (e.target.value / 100).toFixed(2) + ' bar'; };
+  $('#wgSpring').oninput = e => { if (G.car && G.car.ecu.tune) G.car.ecu.tune.boost = e.target.value / 100; $('#wgV').textContent = (e.target.value / 100).toFixed(2) + ' bar'; };
   // teclado
   window.addEventListener('keydown', e => {
     if (e.target.matches('input, textarea')) return;
     if (e.key === 'w' || e.key === 'ArrowUp') { G.full = true; }
+    if (G.view === 'pista' && (e.key === 'e' || e.key === 'ArrowRight') && !e.repeat) raceShift(1);
+    if (G.view === 'pista' && (e.key === 'q' || e.key === 'ArrowLeft') && !e.repeat) raceShift(-1);
     if (e.key === 's' && !e.repeat) { if (G.key === 0) G.key = 1; G.starter = true; syncButtons(); }
   });
   window.addEventListener('keyup', e => {
@@ -1083,14 +1144,23 @@ function renderStart() {
   $$('[data-start]').forEach(b => b.onclick = () => startGame(b.dataset.start));
 }
 
+function holdBtn(el, on, off) {
+  el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (er) { } on(); });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => el.addEventListener(ev, off));
+  el.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); on(); } });
+  el.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') off(); });
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
 window.addEventListener('DOMContentLoaded', () => {
   initDraw($('#cv'));
+  init3D($('#cv3'));
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !/claude|artifact/.test(location.hostname)) { try { navigator.serviceWorker.register('sw.js'); } catch (e) { } }
   buildPaths();
   buildDash();
   bind();
   G.tools = new Set(Object.keys(TOOLS).filter(t => TOOLS[t].start));
-  G.car = newCar();
-  G.job = { def: JOBS[0], id: 0, client: '', auto: '', queja: '', labor: 0, dmg0: { ...G.car.dmg } };
+  setCar(newCar('torque'));
+  G.cars = [G.car];
   renderStart();
   refreshAll();
   requestAnimationFrame(loop);
