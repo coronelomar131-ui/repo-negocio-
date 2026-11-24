@@ -1,5 +1,4 @@
-# Built landing page
-site/
+# La página de Taller Digital by Omar vive en site/ y sí se sube (Vercel la publica desde aquí)
 build/
 
 # Dependencies

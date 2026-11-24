@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/* Taller Digital by Omar · papel de taller, tinta, naranja de seguridad y acero */
+:root {
+  --papel: oklch(0.951 0.012 80);
+  --papel-2: oklch(0.922 0.015 80);
+  --papel-3: oklch(0.885 0.018 78);
+  --hoja: oklch(0.982 0.006 85);
+  --tinta: oklch(0.225 0.008 70);
+  --tinta-2: oklch(0.4 0.012 70);
+  --tinta-3: oklch(0.52 0.012 70);
+  --linea: oklch(0.225 0.008 70 / 0.12);
+  --trazo: oklch(0.225 0.008 70 / 0.28);
+  --naranja: oklch(0.6 0.17 40);
+  --naranja-2: oklch(0.54 0.17 40);
+  --naranja-suave: oklch(0.6 0.17 40 / 0.12);
+  --acero: oklch(0.4 0.025 240);
+  --acero-claro: oklch(0.86 0.015 240);
+  --verde: oklch(0.52 0.1 150);
+  --verde-suave: oklch(0.86 0.06 150);
+  --ambar: oklch(0.84 0.12 82);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@theme inline {
+  --color-papel: var(--papel);
+  --color-papel-2: var(--papel-2);
+  --color-papel-3: var(--papel-3);
+  --color-hoja: var(--hoja);
+  --color-tinta: var(--tinta);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-3: var(--tinta-3);
+  --color-linea: var(--linea);
+  --color-trazo: var(--trazo);
+  --color-naranja: var(--naranja);
+  --color-naranja-2: var(--naranja-2);
+  --color-naranja-suave: var(--naranja-suave);
+  --color-acero: var(--acero);
+  --color-acero-claro: var(--acero-claro);
+  --color-verde: var(--verde);
+  --color-verde-suave: var(--verde-suave);
+  --color-ambar: var(--ambar);
+  --color-background: var(--papel);
+  --color-foreground: var(--tinta);
+  --font-titulo: var(--font-archivo);
+  --font-sans: var(--font-instrument);
+}
+
+/* Escala tipográfica fluida (5 tamaños) y espaciado de 4 pt */
+@theme {
+  --text-fluid-sm: clamp(0.875rem, 0.82rem + 0.25vw, 0.95rem);
+  --text-fluid-base: clamp(1rem, 0.94rem + 0.3vw, 1.125rem);
+  --text-fluid-lg: clamp(1.25rem, 1.08rem + 0.8vw, 1.625rem);
+  --text-fluid-xl: clamp(1.875rem, 1.35rem + 2.4vw, 3.25rem);
+  --text-fluid-2xl: clamp(2.75rem, 1.7rem + 5vw, 6rem);
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+html { background: var(--papel); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  background-color: var(--papel);
+  color: var(--tinta);
+  font-family: var(--font-instrument), ui-serif, serif;
+  font-feature-settings: "liga" 1, "calt" 1;
+  /* Grano de papel: una capa de ruido muy leve, pintada en el fondo (no encima) */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.2 0 0 0 0 0.15 0 0 0 0 0.1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+::selection { background: var(--naranja); color: var(--hoja); }
+:focus-visible { outline: 2px solid var(--naranja); outline-offset: 3px; border-radius: 6px; }
+[id] { scroll-margin-top: 88px; }
+
+.font-titulo { font-family: var(--font-archivo), sans-serif; font-variation-settings: "wdth" 112; letter-spacing: -0.015em; }
+.font-titulo-angosta { font-family: var(--font-archivo), sans-serif; font-variation-settings: "wdth" 82; }
+.etiqueta { font-family: var(--font-archivo), sans-serif; font-variation-settings: "wdth" 100; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.numeros { font-variant-numeric: tabular-nums; }
+
+/* Botón base: respuesta al tocar en todos los botones */
+.boton { transition: transform 140ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+.boton:active:not(:disabled) { transform: scale(0.97); }
+
+/* Tapete de corte: cuadrícula de taller para el fondo del hero */
+.tapete {
+  background-image:
+    linear-gradient(var(--linea) 1px, transparent 1px),
+    linear-gradient(90deg, var(--linea) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+}
+
+/* Borde dentado de ticket y de orden de trabajo */
+.dentado {
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .subraya-hover { background-image: linear-gradient(currentColor, currentColor); background-size: 0% 1.5px; background-repeat: no-repeat; background-position: 0 100%; transition: background-size 220ms var(--ease-out); }
+  .subraya-hover:hover { background-size: 100% 1.5px; }
+}
+
+/* Entrada al hacer scroll (marketing: 600 ms permitido) */
+.revelar { opacity: 0; transform: translateY(16px); transition: opacity 600ms var(--ease-out), transform 700ms var(--ease-out); }
+.revelar[data-visible] { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .revelar { transform: none; transition: opacity 400ms ease; }
+}
+
+/* Cajón del menú en celular (receta Drawer: 450 ms entrada, salida más corta) */
+.cajon[data-state="open"] { animation: cajon-entra 450ms var(--ease-drawer) both; }
+.cajon[data-state="closed"] { animation: cajon-sale 300ms var(--ease-drawer) both; }
+.cortina[data-state="open"] { animation: aparece 220ms ease both; }
+.cortina[data-state="closed"] { animation: desaparece 180ms ease both; }
+@keyframes cajon-entra { from { transform: translateY(100%); } }
+@keyframes cajon-sale { to { transform: translateY(100%); } }
+@keyframes aparece { from { opacity: 0; } }
+@keyframes desaparece { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .cajon[data-state="open"] { animation-name: aparece; animation-duration: 200ms; }
+  .cajon[data-state="closed"] { animation-name: desaparece; animation-duration: 150ms; }
+}
+
+/* Campos de formulario (en la capa de componentes, para que clases como pl-8 sí puedan ajustarlos) */
+@layer components {
+  .entrada { width: 100%; min-height: 3rem; border-radius: 0.875rem; border: 1.5px solid var(--trazo); background: var(--papel); padding: 0 0.875rem; color: var(--tinta); transition: border-color 160ms ease, box-shadow 160ms ease; }
+  .entrada::placeholder { color: var(--tinta-3); opacity: 0.6; }
+  .entrada:focus-visible { outline: none; border-color: var(--tinta); box-shadow: 0 0 0 3px var(--naranja-suave); }
+}
+
+/* Acordeón (receta: 200 ms, altura medida por Radix) */
+.acordeon[data-state="open"] { animation: abre 220ms var(--ease-out); }
+.acordeon[data-state="closed"] { animation: cierra 170ms var(--ease-out); }
+@keyframes abre { from { height: 0; opacity: 0; } to { height: var(--radix-accordion-content-height); opacity: 1; } }
+@keyframes cierra { from { height: var(--radix-accordion-content-height); opacity: 1; } to { height: 0; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .acordeon[data-state="open"] { animation: aparece 150ms ease; }
+  .acordeon[data-state="closed"] { animation: desaparece 120ms ease; }
+}
+
+/* Pasada de animación (find-animation-opportunities → animate) */
+/* 1 · Renglón nuevo en el resumen de "Arma tu sistema": 180 ms, transición (se reacomoda si tocan rápido) */
+.entra-suave { transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+@starting-style { .entra-suave { opacity: 0; transform: translateY(4px); } }
+/* 2 · Aviso de error del pago: 200 ms */
+.baja-suave { transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+@starting-style { .baja-suave { opacity: 0; transform: translateY(-4px); } }
+/* 3 · "Escribiendo…" del asistente: movimiento constante, solo mientras se ve */
+.punto { display: inline-block; animation: respira 900ms ease-in-out infinite alternate; }
+.punto:nth-child(2) { animation-delay: 150ms; }
+.punto:nth-child(3) { animation-delay: 300ms; }
+@keyframes respira { from { opacity: 0.3; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  @starting-style { .entra-suave, .baja-suave { transform: none; } }
+  .punto { animation: none; opacity: 0.6; }
+}
